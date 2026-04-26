@@ -1,0 +1,152 @@
+/* ============================================
+   SVI DESIGN TOKENS — Tailwind v4 CSS-first
+   Fuente única de verdad para todas las apps.
+   Importar desde apps/{web,admin}/.../globals.css con:
+     @import "@repo/config/styles/tokens.css";
+   ============================================ */
+
+@import "tailwindcss";
+
+@theme {
+  /* ========== COLORES SVI ========== */
+  /* Disponibles como bg-svi-red, text-svi-gold, border-svi-card, etc. */
+  --color-svi-black:        #0A0A0A;
+  --color-svi-dark:         #141414;
+  --color-svi-card:         #1A1A1A;
+  --color-svi-elevated:     #222222;
+  --color-svi-overlay:      rgba(10, 10, 10, 0.85);
+
+  --color-svi-red:          #C8102E;
+  --color-svi-red-hover:    #E01535;
+  --color-svi-red-dim:      rgba(200, 16, 46, 0.15);
+
+  --color-svi-gold:         #C5A059;
+  --color-svi-gold-hover:   #D4B96A;
+  --color-svi-gold-dim:     rgba(197, 160, 89, 0.15);
+
+  --color-svi-silver:       #A0A0A0;
+  --color-svi-white:        #FFFFFF;
+  --color-svi-muted:        #E0E0E0;
+  --color-svi-muted-2:      #A0A0A0;
+  --color-svi-disabled:     #555555;
+
+  /* Estados semánticos */
+  --color-svi-success:      #22C55E;
+  --color-svi-warning:      #F59E0B;
+  --color-svi-error:        #EF4444;
+  --color-svi-info:         #3B82F6;
+
+  /* Bordes */
+  --color-svi-border:       rgba(197, 160, 89, 0.20);
+  --color-svi-border-muted: rgba(255, 255, 255, 0.08);
+
+  /* ========== TIPOGRAFÍA ========== */
+  /* Las cargan las apps con next/font y exponen las variables CSS */
+  --font-display:           var(--font-montserrat), system-ui, sans-serif;
+  --font-body:              var(--font-inter), system-ui, sans-serif;
+  --font-mono:              var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* ========== ANIMACIONES ========== */
+  --animate-fade-in:        fade-in 0.5s ease-in-out;
+  --animate-slide-up:       slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-down:     slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-glow-red:       glow-red 2s ease-in-out infinite;
+  --animate-glow-gold:      glow-gold 2s ease-in-out infinite;
+  --animate-shimmer:        shimmer 2s linear infinite;
+  --animate-bounce-soft:    bounce-soft 2s ease-in-out infinite;
+
+  /* ========== SOMBRAS ========== */
+  --shadow-card:            0 4px 24px rgba(0, 0, 0, 0.5);
+  --shadow-elevated:        0 8px 40px rgba(0, 0, 0, 0.7);
+  --shadow-red:             0 0 20px rgba(200, 16, 46, 0.30);
+  --shadow-red-lg:          0 0 40px rgba(200, 16, 46, 0.45);
+  --shadow-gold:            0 0 20px rgba(197, 160, 89, 0.20);
+  --shadow-gold-lg:         0 0 40px rgba(197, 160, 89, 0.35);
+
+  /* ========== RADIOS ========== */
+  --radius-sm:              6px;
+  --radius-md:              10px;
+  --radius-lg:              16px;
+  --radius-xl:              24px;
+  --radius-full:            9999px;
+}
+
+/* ============================================
+   KEYFRAMES (deben vivir fuera de @theme)
+   ============================================ */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes glow-red {
+  0%, 100% { box-shadow: 0 0 20px rgba(200, 16, 46, 0.30); }
+  50%      { box-shadow: 0 0 40px rgba(200, 16, 46, 0.60); }
+}
+@keyframes glow-gold {
+  0%, 100% { box-shadow: 0 0 20px rgba(197, 160, 89, 0.20); }
+  50%      { box-shadow: 0 0 40px rgba(197, 160, 89, 0.40); }
+}
+@keyframes shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(8px); }
+}
+
+/* ============================================
+   BASE — color scheme + reset suave
+   ============================================ */
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-svi-black);
+  color: var(--color-svi-white);
+  font-family: var(--font-body);
+}
+
+/* Focus visible accesible (WCAG AA) */
+*:focus-visible {
+  outline: 2px solid var(--color-svi-gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Selection con acento SVI */
+::selection {
+  background-color: var(--color-svi-red);
+  color: var(--color-svi-white);
+}
+
+/* Scrollbar custom */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-svi-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-svi-gold-dim);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-svi-gold);
+}

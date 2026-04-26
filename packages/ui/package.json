@@ -2,25 +2,42 @@
   "name": "@repo/ui",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
-    "./*": "./src/*.tsx"
+    ".": "./src/index.ts",
+    "./button": "./src/button.tsx",
+    "./card": "./src/card.tsx",
+    "./badge": "./src/badge.tsx",
+    "./input": "./src/input.tsx",
+    "./glass-panel": "./src/glass-panel.tsx",
+    "./kpi-card": "./src/kpi-card.tsx",
+    "./section": "./src/section.tsx",
+    "./logo": "./src/logo.tsx"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
-    "generate:component": "turbo gen react-component",
     "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/utils": "*",
+    "class-variance-authority": "^0.7.0",
+    "lucide-react": "^0.460.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/node": "^22.15.3",
-    "@types/react": "19.2.2",
-    "@types/react-dom": "19.2.2",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
     "eslint": "^9.39.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "typescript": "5.9.2"
-  },
-  "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
   }
 }

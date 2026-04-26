@@ -1,0 +1,56 @@
+/* ============================================
+   UTILIDADES SVI — clases compuestas reutilizables
+   Importar después de tokens.css.
+   ============================================ */
+
+/* Glassmorphism premium para paneles admin y badges */
+.glass-card {
+  background: rgba(26, 26, 26, 0.70);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(197, 160, 89, 0.15);
+  box-shadow: var(--shadow-card);
+}
+
+.glass-soft {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Gradiente de texto rojo→dorado */
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-svi-red), var(--color-svi-gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Hero mesh gradient */
+.hero-mesh {
+  background:
+    radial-gradient(at 20% 50%, rgba(200, 16, 46, 0.20) 0px, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(197, 160, 89, 0.15) 0px, transparent 50%),
+    radial-gradient(at 50% 80%, rgba(200, 16, 46, 0.10) 0px, transparent 50%),
+    var(--color-svi-black);
+}
+
+/* Skeleton shimmer (preferido sobre spinners) */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-svi-card) 0%,
+    var(--color-svi-elevated) 50%,
+    var(--color-svi-card) 100%
+  );
+  background-size: 1000px 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Number ticker (KPI cards) */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}

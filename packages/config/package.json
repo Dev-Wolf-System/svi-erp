@@ -1,0 +1,23 @@
+{
+  "name": "@repo/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./styles/tokens.css": "./styles/tokens.css",
+    "./styles/utilities.css": "./styles/utilities.css",
+    "./postcss": "./postcss.config.mjs",
+    "./constants": "./src/constants.ts"
+  },
+  "files": [
+    "styles",
+    "src",
+    "postcss.config.mjs"
+  ],
+  "devDependencies": {
+    "@repo/typescript-config": "*",
+    "@tailwindcss/postcss": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "5.9.2"
+  }
+}

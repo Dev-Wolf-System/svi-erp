@@ -26,7 +26,10 @@ coverage
 out/
 build
 dist
+next-env.d.ts
 
+# Drizzle
+drizzle/
 
 # Debug
 npm-debug.log*
@@ -36,3 +39,18 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Archivos Varios — guías locales (no se publican)
+AhorrarTokens.md
+CLAUDE.md
+ROADMAP_DESARROLLO.md
+SVI_PLAN_MAESTRO_DEFINITIVO.md
+STACK_TECNOLOGICO.md
+MODELO_DESARROLLO.md
+sesiones.md
+
+# Carpetas Varias
+.claude/
+.skills/
+.SVI-skills/
+Media/

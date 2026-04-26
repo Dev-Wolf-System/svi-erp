@@ -1,12 +1,18 @@
 {
   "name": "svi-erp",
+  "version": "0.1.0",
+  "description": "Solo Vehículos Impecables — ERP/CRM con landing, portal extranet y panel privado.",
   "private": true,
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "format": "prettier --write \"**/*.{ts,tsx,md,css}\"",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "db:generate": "turbo run db:generate",
+    "db:push": "turbo run db:push",
+    "db:studio": "turbo run db:studio"
   },
   "devDependencies": {
     "prettier": "^3.7.4",
@@ -14,7 +20,7 @@
     "typescript": "5.9.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "packageManager": "npm@11.12.1",
   "workspaces": [
