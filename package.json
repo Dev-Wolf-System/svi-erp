@@ -6,6 +6,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:reset": "bash scripts/dev-reset.sh",
+    "clean": "rm -rf apps/*/.next .turbo apps/*/.turbo packages/*/.turbo node_modules/.cache",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,css}\"",
     "check-types": "turbo run check-types",

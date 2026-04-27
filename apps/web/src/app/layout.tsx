@@ -88,6 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="es-AR"
+      data-scroll-behavior="smooth"
       className={`${montserrat.variable} ${inter.variable} ${jetbrains.variable} dark`}
     >
       <body className="font-body bg-svi-black text-svi-white antialiased">

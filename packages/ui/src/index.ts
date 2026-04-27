@@ -4,5 +4,6 @@ export * from "./badge";
 export * from "./input";
 export * from "./glass-panel";
 export * from "./kpi-card";
+export * from "./sparkline";
 export * from "./section";
 export * from "./logo";

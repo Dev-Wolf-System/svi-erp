@@ -1,9 +1,7 @@
 -- ============================================================================
 -- SVI ERP/CRM — SCHEMA CONSOLIDADO PARA SQL EDITOR
 -- Generado automáticamente desde supabase/migrations/*.sql
--- Pegar TODO en el SQL Editor del Studio (Supabase) y ejecutar.
 -- ============================================================================
-
 
 -- ---------- 0001_extensions_and_enums.sql ----------
 -- ============================================================================
@@ -170,15 +168,19 @@ BEGIN
     RETURN event;
   END IF;
 
-  -- Rol "más alto" + lista de sucursales asignadas
+  -- Lista de sucursales asignadas + rol (PG no tiene MIN(uuid), por eso 2 selects)
   SELECT
     array_agg(usr.sucursal_id),
-    MIN(r.nombre),
-    MIN(usr.sucursal_id) FILTER (WHERE usr.es_principal) AS sucursal_ppal
-  INTO v_sucursales, v_rol, v_sucursal_ppal
+    MIN(r.nombre)
+  INTO v_sucursales, v_rol
   FROM usuario_sucursal_rol usr
   JOIN roles r ON r.id = usr.rol_id
   WHERE usr.usuario_id = v_user_id;
+
+  SELECT usr.sucursal_id INTO v_sucursal_ppal
+  FROM usuario_sucursal_rol usr
+  WHERE usr.usuario_id = v_user_id AND usr.es_principal
+  LIMIT 1;
 
   -- Inyectar app_metadata
   v_claims := jsonb_set(v_claims, '{app_metadata}', COALESCE(v_claims->'app_metadata', '{}'::jsonb));
@@ -1093,7 +1095,7 @@ SELECT cron.schedule(
 
 
 -- ============================================================================
--- SEEDS DE DEMO (opcional — borrar antes de producción)
+-- SEEDS DE DEMO (opcional)
 -- ============================================================================
 
 -- ---------- 01_empresas_y_sucursales.sql ----------
