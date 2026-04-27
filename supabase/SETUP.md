@@ -25,19 +25,51 @@ Sin este paso, las RLS no reciben `empresa_id` y todas las queries devuelven 0 f
 3. Habilitar y elegir la función PostgreSQL `public.custom_access_token_hook`.
 4. Guardar.
 
-### Opción B — desde el VPS (CLI Supabase self-hosted)
+### Opción B — Supabase self-hosted (VPS con docker-compose)
 
-Si el panel de Hooks no está disponible en tu versión, editar el `.env` del Supabase docker-compose y agregar:
+**Atención:** en self-hosted hay que tocar **dos archivos** del directorio de Supabase:
+
+**1. Editar el `.env` de Supabase** (ej: `/root/supabase-svi/.env`) y agregar:
 
 ```env
 GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED=true
 GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI=pg-functions://postgres/public/custom_access_token_hook
 ```
 
-Luego reiniciar el contenedor `auth`:
+**2. Editar el `docker-compose.yml` del servicio `auth`** para que esas dos vars lleguen al contenedor (Compose NO las pasa automáticamente, solo las usa para sustituir `${...}`):
+
+```yaml
+auth:
+  ...
+  environment:
+    GOTRUE_API_HOST: 0.0.0.0
+    ...
+    GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
+
+    # ↓↓↓ AGREGAR ↓↓↓
+    GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED: ${GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED}
+    GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI: ${GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI}
+```
+
+**3. Aplicar los cambios** (usar `up -d`, no solo `restart`):
 
 ```bash
-docker compose restart auth
+cd /root/supabase-svi
+docker compose up -d auth
+```
+
+**4. Verificar que el contenedor recibió las vars:**
+
+```bash
+docker compose exec auth env | grep -i hook
+# debe mostrar las dos GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_*
+```
+
+**5. Verificar que el hook se ejecuta sin error en el siguiente login:**
+
+```bash
+docker compose logs auth --tail=50 | grep -iE "hook|error"
+# si hay "Hook errored out" → ver mensaje SQLSTATE para diagnosticar
 ```
 
 ---
@@ -151,11 +183,38 @@ Si no aparecen, asegurate de que la extensión `pg_cron` esté habilitada (la mi
 
 ---
 
-## 8. Próximos pasos
+## 8. Diagnóstico — página de debug del JWT
+
+El admin incluye una página interna para verificar que los claims llegan bien:
+
+```
+http://localhost:3001/debug/jwt
+```
+
+Muestra el contenido de `user.app_metadata`, intenta una query a `vehiculos` y reporta el resultado. Útil para validar que el hook JWT está activo y la RLS deja pasar los datos.
+
+**Borrar antes de producción** (`apps/admin/src/app/(dashboard)/debug/`).
+
+---
+
+## 9. Bug conocido del hook (FIXED en migration 0003)
+
+Si crearon el hook con una versión vieja de `0003_jwt_claims_hook.sql`, podía fallar con:
+
+```
+ERROR: function min(uuid) does not exist (SQLSTATE 42883)
+```
+
+Causa: PostgreSQL no tiene `MIN(uuid)` nativo. Solucionado en commit `6ee00fc` separando el cálculo de `sucursal_ppal` en un SELECT aparte. Si ya tenían la función vieja desplegada, re-ejecutar la versión actualizada de `supabase/migrations/0003_jwt_claims_hook.sql` (o el `_consolidated_schema.sql` regenerado).
+
+---
+
+## 10. Próximos pasos
 
 - ✅ Schema aplicado
 - ✅ Hook JWT activo
 - ✅ Usuario admin creado
-- ⏳ Conectar el dashboard admin con datos reales (Drizzle queries) — Fase 3
-- ⏳ Configurar Storage buckets para fotos
+- ✅ Stock conectado a DB real (Fase 3)
+- ⏳ Clientes CRUD + pipeline de leads (Fase 3 parte 2)
+- ⏳ Configurar Storage buckets para fotos de vehículos
 - ⏳ Mover N8N webhooks a Edge Functions (Fase 9)
