@@ -1,0 +1,61 @@
+# ============================================================================
+# Caddy reverse proxy — SVI ERP/CRM
+# ============================================================================
+# SSL automático con Let's Encrypt.
+# Cambiar los hostnames cuando estén los dominios reales.
+# ============================================================================
+
+# Landing pública + portal extranet
+svi.com.ar, www.svi.com.ar {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), camera=(), microphone=()"
+		-Server
+	}
+
+	@notfound {
+		path /.git/* /.env* /.htaccess
+	}
+	respond @notfound 404
+
+	reverse_proxy web:3000 {
+		header_up X-Real-IP {remote_host}
+		health_uri /
+		health_interval 30s
+		health_timeout 5s
+	}
+}
+
+# Panel privado interno
+app.svi.com.ar {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "geolocation=(), camera=(), microphone=()"
+		-Server
+	}
+
+	reverse_proxy admin:3001 {
+		header_up X-Real-IP {remote_host}
+		health_uri /login
+		health_interval 30s
+		health_timeout 5s
+	}
+}
+
+# ============================================================================
+# Mientras no haya dominios reales, podés probar local con un override:
+# en /etc/hosts:
+#   127.0.0.1 svi.local app.svi.local
+# y reemplazar los hostnames de arriba por svi.local / app.svi.local.
+# Caddy generará certificados internos auto-firmados.
+# ============================================================================

@@ -1,0 +1,47 @@
+# Build artifacts
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+coverage
+**/coverage
+
+# Env / secrets — NUNCA copiar dentro de la imagen
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Git / docs / dev tooling
+.git
+.github
+.vscode
+.idea
+.claude
+.skills
+.SVI-skills
+Media
+
+# Markdown locales (CLAUDE.md, planes, etc.)
+CLAUDE.md
+AhorrarTokens.md
+ROADMAP_DESARROLLO.md
+SVI_PLAN_MAESTRO_DEFINITIVO.md
+STACK_TECNOLOGICO.md
+MODELO_DESARROLLO.md
+sesiones.md
+
+# Misc
+.DS_Store
+*.log
+*.pem
+README.md
+docker-compose*.yml
+Dockerfile*
+.dockerignore
