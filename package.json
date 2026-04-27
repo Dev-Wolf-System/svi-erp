@@ -12,7 +12,8 @@
     "test": "turbo run test",
     "db:generate": "turbo run db:generate",
     "db:push": "turbo run db:push",
-    "db:studio": "turbo run db:studio"
+    "db:studio": "turbo run db:studio",
+    "postinstall": "node -e \"const fs=require('fs');const p='node_modules/.bin/next';if(fs.existsSync(p)&&fs.statSync(p).size===0){console.log('🔧 WSL detected — rebuilding bin symlinks...');require('child_process').execSync('npm rebuild --bin-links',{stdio:'inherit'})}\""
   },
   "devDependencies": {
     "prettier": "^3.7.4",

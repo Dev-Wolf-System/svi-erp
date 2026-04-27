@@ -97,6 +97,22 @@ npm run dev
 
 Ingresá con el usuario que creaste en el paso 3. Si redirige al `/dashboard` sin error, el JWT hook está funcionando.
 
+### Troubleshooting: `npm run dev` no arranca (WSL2 sobre `/mnt/`)
+
+Si trabajás en Windows con WSL2 y el repo vive en `/mnt/d/...`, npm puede crear los binarios de `node_modules/.bin/` como archivos vacíos (0 bytes). Síntoma: `npm run dev` retorna instantáneamente con exit 0 sin output.
+
+Diagnóstico:
+```bash
+ls -la node_modules/.bin/next   # si dice "0" en el size, está roto
+```
+
+Fix:
+```bash
+npm rebuild --bin-links
+```
+
+El `postinstall` del root `package.json` ya detecta este caso y lo arregla automáticamente después de `npm install`.
+
 ---
 
 ## 6. Storage — buckets
