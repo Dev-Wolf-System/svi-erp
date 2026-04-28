@@ -9,9 +9,18 @@ import {
   SignatureRow,
   SviFooter,
   SviHeader,
+  SviIntegrityFooter,
 } from "../components";
 import { SVI_COLORS, SVI_FONTS, SVI_SIZES } from "../theme";
 import type { ContratoVentaData } from "./schema";
+
+export interface ContratoVentaIntegrity {
+  hash: string;
+  shortHash: string;
+  qrDataUrl: string;
+  verifyUrl: string;
+  contratoVersion: number;
+}
 
 const pageStyles = StyleSheet.create({
   page: {
@@ -56,7 +65,19 @@ function clienteFullName(c: ContratoVentaData["cliente"]): string {
   return c.apellido ? `${c.apellido}, ${c.nombre}` : c.nombre;
 }
 
-export function ContratoVentaDocument({ data }: { data: ContratoVentaData }) {
+export interface ContratoVentaDocumentProps {
+  data: ContratoVentaData;
+  /** Logo SVI como data URL (image/jpeg). Si se omite, header sin logo. */
+  logoDataUrl?: string | null;
+  /** Sello de integridad (hash + QR). Si se omite, footer simple legacy. */
+  integrity?: ContratoVentaIntegrity | null;
+}
+
+export function ContratoVentaDocument({
+  data,
+  logoDataUrl,
+  integrity,
+}: ContratoVentaDocumentProps) {
   const { empresa, sucursal, venta, vehiculo, cliente, parte_pago, financiacion } = data;
   const moneda = venta.moneda;
 
@@ -74,6 +95,7 @@ export function ContratoVentaDocument({ data }: { data: ContratoVentaData }) {
           empresaEmail={empresa.email}
           sucursalNombre={sucursal.nombre}
           sucursalDireccion={sucursal.direccion}
+          logoDataUrl={logoDataUrl}
         />
 
         <View style={pageStyles.metaRow}>
@@ -211,7 +233,18 @@ export function ContratoVentaDocument({ data }: { data: ContratoVentaData }) {
           />
         </SignatureRow>
 
-        <SviFooter />
+        {integrity ? (
+          <SviIntegrityFooter
+            numeroOperacion={venta.numero_operacion}
+            shortHash={integrity.shortHash}
+            fullHash={integrity.hash}
+            contratoVersion={integrity.contratoVersion}
+            qrDataUrl={integrity.qrDataUrl}
+            verifyUrl={integrity.verifyUrl}
+          />
+        ) : (
+          <SviFooter />
+        )}
       </Page>
     </Document>
   );

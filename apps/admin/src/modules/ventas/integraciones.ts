@@ -365,9 +365,24 @@ export async function generarContratoVentaPdf(
         : null,
   };
 
+  const service = createServiceClient();
+  const versionExistente = await service.storage
+    .from(CONTRATOS_BUCKET)
+    .list(`${v.empresa_id}/${ventaId}`, { limit: 100 });
+  const version = (versionExistente.data?.length ?? 0) + 1;
+
+  const verifyBaseUrl =
+    process.env.NEXT_PUBLIC_ADMIN_URL ?? "http://localhost:3001";
+
   let buffer: Buffer;
+  let hash: string | null;
   try {
-    buffer = await renderContratoVenta(data);
+    const out = await renderContratoVenta(data, {
+      verifyBaseUrl,
+      contratoVersion: version,
+    });
+    buffer = out.buffer;
+    hash = out.hash;
   } catch (err) {
     return {
       ok: false,
@@ -375,11 +390,6 @@ export async function generarContratoVentaPdf(
     };
   }
 
-  const service = createServiceClient();
-  const versionExistente = await service.storage
-    .from(CONTRATOS_BUCKET)
-    .list(`${v.empresa_id}/${ventaId}`, { limit: 100 });
-  const version = (versionExistente.data?.length ?? 0) + 1;
   const filePath = `${v.empresa_id}/${ventaId}/${v.numero_operacion}-v${version}.pdf`;
 
   const { error: upErr } = await service.storage
@@ -411,6 +421,8 @@ export async function generarContratoVentaPdf(
     .from("ventas")
     .update({
       contrato_url: filePath,
+      contrato_hash: hash,
+      contrato_version: version,
       updated_at: new Date().toISOString(),
     })
     .eq("id", ventaId);

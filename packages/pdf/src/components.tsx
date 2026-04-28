@@ -1,18 +1,24 @@
-import { StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Image, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { ReactNode } from "react";
 import { SVI_COLORS, SVI_FONTS, SVI_SIZES } from "./theme";
 
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     paddingBottom: 12,
     marginBottom: 20,
     borderBottomWidth: 2,
     borderBottomColor: SVI_COLORS.gold,
   },
-  brand: { flexDirection: "column" },
+  brand: { flexDirection: "row", alignItems: "center", gap: 12 },
+  brandLogo: {
+    width: 56,
+    height: 56,
+    objectFit: "contain",
+  },
+  brandTextBlock: { flexDirection: "column" },
   brandName: {
     fontSize: SVI_SIZES.display,
     fontFamily: SVI_FONTS.display,
@@ -129,20 +135,52 @@ const styles = StyleSheet.create({
 
   footer: {
     position: "absolute",
-    bottom: 30,
+    bottom: 24,
     left: 50,
     right: 50,
     flexDirection: "row",
+    alignItems: "flex-end",
     justifyContent: "space-between",
     borderTopWidth: 1,
     borderTopColor: SVI_COLORS.border,
-    paddingTop: 8,
+    paddingTop: 6,
   },
   footerText: {
     fontSize: SVI_SIZES.xs,
-    color: "#AAAAAA",
+    color: "#777777",
     fontFamily: SVI_FONTS.body,
   },
+  footerCenter: {
+    flexDirection: "column",
+    alignItems: "center",
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  footerHashLabel: {
+    fontSize: 7,
+    color: "#999999",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    fontFamily: SVI_FONTS.body,
+  },
+  footerHash: {
+    fontSize: SVI_SIZES.xs,
+    color: SVI_COLORS.black,
+    fontFamily: SVI_FONTS.display,
+    letterSpacing: 0.5,
+  },
+  footerVerify: {
+    fontSize: 7,
+    color: "#999999",
+    fontFamily: SVI_FONTS.body,
+    marginTop: 1,
+  },
+  footerQr: {
+    width: 36,
+    height: 36,
+  },
+  footerLeft: { flexDirection: "column", maxWidth: 160 },
+  footerRight: { flexDirection: "column", alignItems: "flex-end" },
   footerPageNum: {
     fontSize: SVI_SIZES.xs,
     color: SVI_COLORS.gold,
@@ -157,14 +195,21 @@ export interface SviHeaderProps {
   empresaEmail?: string | null;
   sucursalNombre: string;
   sucursalDireccion?: string | null;
+  /** Logo data URL (image/jpeg base64). Si se omite, header sin logo. */
+  logoDataUrl?: string | null;
 }
 
 export function SviHeader(props: SviHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.brand}>
-        <Text style={styles.brandName}>{props.empresaNombre}</Text>
-        <Text style={styles.brandTagline}>Solo Vehículos Impecables</Text>
+        {props.logoDataUrl ? (
+          <Image src={props.logoDataUrl} style={styles.brandLogo} />
+        ) : null}
+        <View style={styles.brandTextBlock}>
+          <Text style={styles.brandName}>{props.empresaNombre}</Text>
+          <Text style={styles.brandTagline}>Solo Vehículos Impecables</Text>
+        </View>
       </View>
       <View style={styles.brandMeta}>
         <Text style={styles.brandMetaSucursal}>{props.sucursalNombre}</Text>
@@ -249,6 +294,48 @@ export function SviFooter({ texto }: SviFooterProps) {
         }
         fixed
       />
+    </View>
+  );
+}
+
+export interface SviIntegrityFooterProps {
+  numeroOperacion: string;
+  shortHash: string;
+  fullHash: string;
+  contratoVersion: number;
+  qrDataUrl: string;
+  verifyUrl: string;
+}
+
+/**
+ * Footer fijo con sello de integridad: QR a la URL pública de verificación,
+ * hash truncado y completo, número de operación y versión del documento.
+ * Se imprime en cada página (fixed).
+ */
+export function SviIntegrityFooter(props: SviIntegrityFooterProps) {
+  return (
+    <View style={styles.footer} fixed>
+      <View style={styles.footerLeft}>
+        <Text style={styles.footerText}>
+          {props.numeroOperacion} · v{props.contratoVersion}
+        </Text>
+        <Text style={styles.footerVerify}>Verificar: {props.verifyUrl}</Text>
+      </View>
+      <View style={styles.footerCenter}>
+        <Text style={styles.footerHashLabel}>SHA-256</Text>
+        <Text style={styles.footerHash}>{props.shortHash}</Text>
+        <Text style={styles.footerVerify}>{props.fullHash.slice(0, 32)}…</Text>
+      </View>
+      <View style={styles.footerRight}>
+        <Image src={props.qrDataUrl} style={styles.footerQr} />
+        <Text
+          style={styles.footerPageNum}
+          render={({ pageNumber, totalPages }) =>
+            `${pageNumber} / ${totalPages}`
+          }
+          fixed
+        />
+      </View>
     </View>
   );
 }

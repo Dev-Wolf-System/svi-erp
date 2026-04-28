@@ -92,14 +92,15 @@ describe("contratoVentaSchema", () => {
 
 describe("renderContratoVenta", () => {
   it("genera un Buffer PDF no vacío para venta contado", async () => {
-    const buf = await renderContratoVenta(baseData);
+    const { buffer: buf, hash } = await renderContratoVenta(baseData);
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.byteLength).toBeGreaterThan(1000);
     expect(buf.subarray(0, 4).toString("ascii")).toBe("%PDF");
+    expect(hash).toBeNull();
   }, 30_000);
 
   it("incluye sección de parte de pago cuando se pasa", async () => {
-    const buf = await renderContratoVenta({
+    const { buffer: buf } = await renderContratoVenta({
       ...baseData,
       venta: { ...baseData.venta, tipo_pago: "parte_pago" },
       parte_pago: {
@@ -114,7 +115,7 @@ describe("renderContratoVenta", () => {
   }, 30_000);
 
   it("incluye sección de financiación cuando se pasa", async () => {
-    const buf = await renderContratoVenta({
+    const { buffer: buf } = await renderContratoVenta({
       ...baseData,
       venta: { ...baseData.venta, tipo_pago: "financiado" },
       financiacion: {
@@ -129,7 +130,7 @@ describe("renderContratoVenta", () => {
   }, 30_000);
 
   it("genera PDF para cliente empresa con CUIT", async () => {
-    const buf = await renderContratoVenta({
+    const { buffer: buf } = await renderContratoVenta({
       ...baseData,
       cliente: {
         tipo: "empresa",
@@ -143,6 +144,15 @@ describe("renderContratoVenta", () => {
       },
     });
     expect(buf.byteLength).toBeGreaterThan(1000);
+  }, 30_000);
+
+  it("agrega sello de integridad cuando se pasa verifyBaseUrl", async () => {
+    const { buffer: buf, hash } = await renderContratoVenta(baseData, {
+      verifyBaseUrl: "https://svi-erp.test",
+      contratoVersion: 2,
+    });
+    expect(buf.byteLength).toBeGreaterThan(1000);
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
   }, 30_000);
 
   it("falla rápido si la data es inválida", async () => {

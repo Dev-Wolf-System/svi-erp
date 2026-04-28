@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingIncludes: {
+    // Los assets del package @repo/pdf (logo, fuentes opcionales) los lee
+    // el render del PDF desde filesystem en runtime. Sin este include no
+    // los copia al bundle standalone y el build de prod falla.
+    "/api/**/*": ["../../packages/pdf/assets/**/*"],
+    "/(dashboard)/**/*": ["../../packages/pdf/assets/**/*"],
+  },
   transpilePackages: ["@repo/ui", "@repo/utils", "@repo/database", "@repo/config"],
   images: {
     remotePatterns: [

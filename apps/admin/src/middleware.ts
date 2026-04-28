@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/login") ||
+    request.nextUrl.pathname.startsWith("/v/") ||
     request.nextUrl.pathname === "/";
 
   // Si no hay Supabase configurado (ej. dev local sin env), no bloqueamos

@@ -252,6 +252,8 @@ Pendiente. Cuando se conecte la subida de fotos del módulo stock.
 0011_cron_jobs.sql                  ✅
 0012_ventas_constraints.sql         ✅  (F4 — checks parte_pago/financiado, snapshot comisión)
 0013_security_definer_internals.sql ✅  (F4.1 — fix RLS audit_log + numeracion)
+0014_mp_init_point.sql              ✅  (F4.5 — persistir init_point MP)
+0015_contrato_hash_y_firma_metodo.sql ✅ (F4.6 — autenticidad PDF: hash + firma_metodo + version)
 ```
 
 ---
@@ -311,3 +313,39 @@ curl -X POST http://localhost:3001/api/webhooks/mercadopago \
 Devuelve `{ok:true, service:"mercadopago_webhook"}` — útil para verificar que
 la ruta está enrutada correctamente por el reverse proxy.
 
+---
+
+## 14. Autenticidad del contrato PDF (F4.6)
+
+Cada PDF generado lleva un **sello de integridad** impreso en el footer de
+cada hoja: SHA-256 del payload canónico + QR a la URL pública de verificación
++ logo SVI. Permite probar a cualquier tercero que el documento no fue alterado.
+
+### Flujo
+1. Al generar el PDF, `renderContratoVenta` calcula `computeContratoHash(data)`
+   sobre los campos legalmente relevantes (precio, vehículo, cliente, dominio,
+   etc — NO sobre teléfono/email/notas que pueden cambiar sin que el contrato
+   sea otro).
+2. El hash se imprime con formato `XXXX:XXXX` + URL `https://<host>/v/<numero_op>` +
+   QR. Aparece en cada hoja vía `<View fixed>`.
+3. `ventas.contrato_hash` y `ventas.contrato_version` se persisten al subir el PDF.
+4. La página pública `/v/<numero_op>` (sin auth) recalcula el hash desde la DB,
+   lo compara con el persistido y muestra **✓ Auténtico** o **✗ No coincide**.
+5. La página ofusca DNI/CUIT (formato `30****56`) y NO muestra
+   teléfono/email/dirección/banco/comisión.
+
+### Estado legal
+Es **autenticidad técnica** (anti-tamper sin terceros), no firma legal bajo
+Ley 25.506. El campo `ventas.firma_metodo` (default `'presencial'`) sirve de
+slot para sumar firma electrónica externa después (TokenSign, ZapSign, etc)
+sin rediseño.
+
+### Tests
+- `packages/pdf/src/contrato-venta/__tests__/canonical.test.ts` — 14 tests
+  cubren determinismo, normalización de fechas/decimales, exclusión de campos
+  no legales, sensibilidad a cambios reales.
+- `render.test.ts` valida que `verifyBaseUrl` agrega el sello.
+
+### Cómo desactivar el sello (preview interna sin hash)
+`renderContratoVenta(data, { /* sin verifyBaseUrl */ })` → cae al footer legacy.
+Útil para imprimir borradores que no quieren ir a la página pública.
