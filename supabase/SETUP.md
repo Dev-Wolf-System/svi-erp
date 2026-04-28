@@ -263,6 +263,51 @@ Pendiente. Cuando se conecte la subida de fotos del módulo stock.
 - ✅ Usuario admin creado
 - ✅ Stock + Clientes + Leads + Bancos + Ventas conectados a DB real (F3 + F4)
 - ✅ Bucket `contratos-pdf` creado
-- ⏳ Webhook `/api/webhooks/mercadopago` para confirmar pagos (F4.5)
+- ✅ Webhook `/api/webhooks/mercadopago` (F4.5) — ver §13
 - ⏳ Configurar bucket `vehiculos-fotos` para fotos de stock
 - ⏳ Inversiones FCI (F5)
+
+---
+
+## 13. Webhook Mercado Pago (F4.5)
+
+Endpoint: `POST /api/webhooks/mercadopago` en el admin.
+
+### Flujo
+1. **Firma HMAC-SHA256**: si `MP_WEBHOOK_SECRET` está seteado, el handler valida
+   el header `x-signature` contra el manifest `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`.
+   En `NODE_ENV=production` la firma es **obligatoria**; en dev se acepta sin
+   firma para facilitar pruebas con curl.
+2. **Idempotencia**: INSERT en `webhook_eventos` con `(proveedor='mercadopago',
+   external_id='<type>:<data.id>')`. La constraint UNIQUE (`uniq_webhook`) evita
+   duplicados. Si MP reenvía el mismo evento → respuesta `200 {deduplicated:true}`
+   sin tocar la venta.
+3. **Routing**: para eventos `type=payment`, el handler hace `payment.get(id)` al
+   SDK de MP y parsea `external_reference` con formato `tipo:sucursal_id:referencia_id`.
+4. **Update**: si el tipo es `venta_seña` o `venta_saldo`, actualiza
+   `ventas.mp_payment_id`, `mp_status` (no cambia `estado` automáticamente —
+   eso lo decide el operador).
+5. **Marca procesado**: `procesado=true, procesado_at=NOW()` al final. Si hubo
+   error, persiste `error` y devuelve 500 → MP reintenta.
+
+### Configuración MP (panel)
+Una vez deployado, en https://www.mercadopago.com.ar/developers/panel:
+1. Ir a la app → **Webhooks** → **Configurar notificaciones**.
+2. URL productiva: `https://svi-erp.srv878399.hstgr.cloud/api/webhooks/mercadopago`
+3. Eventos: marcar **Pagos**.
+4. Generar la **clave secreta** y copiarla a `.env.production` como `MP_WEBHOOK_SECRET`.
+
+### Test manual desde CLI (dev)
+```bash
+curl -X POST http://localhost:3001/api/webhooks/mercadopago \
+  -H "Content-Type: application/json" \
+  -H "x-request-id: test-req-1" \
+  -d '{"type":"payment","action":"payment.created","data":{"id":"123456789"},"date_created":"2026-04-28T00:00:00Z"}'
+# En dev sin MP_WEBHOOK_SECRET responderá 200 (saltea HMAC).
+# El payment.get fallará si el id no existe — el evento queda registrado en webhook_eventos con error.
+```
+
+### GET /api/webhooks/mercadopago
+Devuelve `{ok:true, service:"mercadopago_webhook"}` — útil para verificar que
+la ruta está enrutada correctamente por el reverse proxy.
+

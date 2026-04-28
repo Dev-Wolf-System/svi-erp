@@ -123,10 +123,16 @@ pero **no son válidos legalmente**.
 
 ## 6. Mercado Pago — credenciales productivas
 
-Cambiar las credenciales de `TEST-...` a `APP_USR-...` en `.env.production`.
+Cambiar las credenciales de `TEST-...` a `APP_USR-...` en `.env.production`:
+- `MP_ACCESS_TOKEN`
+- `MP_WEBHOOK_SECRET` (clave generada en panel MP → Webhooks)
+
 Configurar webhook URL en el panel MP apuntando a:
-`https://app.svi.com.ar/api/webhooks/mercadopago` (cuando se implemente —
-F4.5 pendiente).
+`https://svi-erp.srv878399.hstgr.cloud/api/webhooks/mercadopago` (F4.5 ✅
+implementado — ver `supabase/SETUP.md` §13 para flujo completo).
+
+**En `NODE_ENV=production` la firma HMAC es obligatoria** — sin
+`MP_WEBHOOK_SECRET` el handler responde 500. En dev se acepta sin firma.
 
 ---
 

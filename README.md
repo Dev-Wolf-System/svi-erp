@@ -111,7 +111,7 @@ Ver `ROADMAP_DESARROLLO.md` para detalle por fase.
 | 1 | Landing premium + portal extranet (mock) | ✅ Completo |
 | 2 | Auth Supabase + middleware + dashboard | ✅ Completo |
 | 3 | Stock CRUD + Clientes + Leads Kanban | ✅ Completo |
-| 4 | Ventas + Bancos + AFIP/MP/PDF | ✅ Completo (driver stub) |
+| 4 | Ventas + Bancos + AFIP/MP/PDF + webhook MP | ✅ Completo (AFIP driver stub) |
 | 5 | Inversiones FCI + extranet real | ⏳ Pendiente |
 | 6 | Caja + cierres | ⏳ Pendiente |
 | 7 | RRHH | ⏳ Pendiente |
