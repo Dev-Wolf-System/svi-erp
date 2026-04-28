@@ -1,6 +1,6 @@
 # ADR 0005 — Webhooks idempotentes vía tabla dedicada
 
-**Status:** accepted
+**Status:** accepted · **Implementado en F4.5** (2026-04-28)
 **Fecha:** 2026-04-26
 
 ## Contexto
@@ -40,3 +40,22 @@ INSERT INTO webhook_eventos (proveedor, external_id, payload)
 - Toda Edge Function de webhook debe pasar por este patrón antes de tocar otras tablas.
 - `webhook_eventos.payload` puede crecer — se purga con cron job mensual archivando >90 días.
 - Tests MSW deben simular reintentos para validar idempotencia.
+
+## Implementación de referencia (F4.5)
+
+El primer webhook real (Mercado Pago) está en
+`apps/admin/src/app/api/webhooks/mercadopago/route.ts` y aplica este patrón
+con dos diferencias prácticas frente al esquema teórico:
+
+1. **Implementado como Next.js Route Handler (Node runtime)**, no como Supabase
+   Edge Function — `crypto.timingSafeEqual` no corre en Deno Edge y la verificación
+   HMAC es crítica. La decisión queda abierta a migrar a Edge si surge un caso
+   donde tenga sentido (no es el caso de MP).
+
+2. **`INSERT ... .select("id").single()` en lugar de `ON CONFLICT DO NOTHING`** —
+   `supabase-js` no expone `RETURNING` con `ON CONFLICT` de forma directa, así que
+   el código intenta el INSERT y atrapa el error con `code === "23505"` (unique
+   violation) para devolver `200 {deduplicated:true}`. Mismo resultado, distinto
+   wire format. La constraint UNIQUE sigue siendo la fuente de verdad.
+
+Documentación operativa del flujo completo en `supabase/SETUP.md` §13.

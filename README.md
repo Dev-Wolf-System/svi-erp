@@ -33,9 +33,12 @@ svi-erp/
 │   ├── _consolidated_schema.sql  todo en un archivo (para SQL Editor)
 │   └── SETUP.md          guía operativa de inicialización
 ├── infra/
-│   ├── Caddyfile         reverse proxy SSL automático
-│   └── DEPLOY.md         guía de deploy en VPS
-├── docs/adr/             7 ADRs documentando decisiones técnicas
+│   ├── Caddyfile         (legacy — reemplazado por Traefik labels en docker-compose.yml)
+│   └── DEPLOY.md         guía de deploy en VPS (Traefik + redes externas)
+├── docs/
+│   ├── adr/              7 ADRs documentando decisiones técnicas
+│   └── PRODUCTION_HARDENING.md  checklist pre-prod (12 secciones)
+├── docker-compose.yml    Traefik labels + redes externas (n8n_evoapi, supabase_network)
 └── scripts/dev-reset.sh  limpieza completa + reinicio dev
 ```
 
