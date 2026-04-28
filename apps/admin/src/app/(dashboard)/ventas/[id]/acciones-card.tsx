@@ -7,6 +7,7 @@ import {
   FileSignature,
   Loader2,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -21,6 +22,7 @@ import {
   emitirFacturaAfip,
   crearPreferenciaMP,
   generarContratoVentaPdf,
+  getSignedContratoUrl,
 } from "@/modules/ventas/integraciones";
 
 interface Props {
@@ -28,9 +30,11 @@ interface Props {
   cae: string | null;
   caeVencimiento: string | null;
   afipDriver: string | null;
+  comprobanteAfipUrl: string | null;
   mpPreferenceId: string | null;
   mpPaymentId: string | null;
   mpStatus: string | null;
+  mpInitPoint: string | null;
   contratoPath: string | null;
   precioFinal: number;
   moneda: string;
@@ -38,13 +42,11 @@ interface Props {
 
 export function AccionesCard(props: Props) {
   return (
-    <>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <AfipCard {...props} />
-        <MercadoPagoCard {...props} />
-        <ContratoCard {...props} />
-      </div>
-    </>
+    <div className="grid gap-6 lg:grid-cols-3">
+      <AfipCard {...props} />
+      <MercadoPagoCard {...props} />
+      <ContratoCard {...props} />
+    </div>
   );
 }
 
@@ -53,6 +55,7 @@ function AfipCard({
   cae,
   caeVencimiento,
   afipDriver,
+  comprobanteAfipUrl,
 }: Props) {
   const [pending, startTransition] = useTransition();
 
@@ -74,7 +77,7 @@ function AfipCard({
       </CardHeader>
       <CardContent className="space-y-3">
         {cae ? (
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3 text-sm">
             <div>
               <p className="text-[10px] uppercase tracking-wider text-svi-muted-2">
                 CAE
@@ -84,6 +87,21 @@ function AfipCard({
             <p className="text-xs text-svi-muted">
               Vence: {caeVencimiento ?? "—"} · driver: {afipDriver ?? "stub"}
             </p>
+            {comprobanteAfipUrl ? (
+              <a
+                href={comprobanteAfipUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-svi-gold hover:underline"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                Ver comprobante
+              </a>
+            ) : (
+              <p className="text-[11px] text-svi-muted-2">
+                Comprobante PDF disponible al pasar a driver real (stub no genera archivo).
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -114,12 +132,15 @@ function MercadoPagoCard({
   mpPreferenceId,
   mpPaymentId,
   mpStatus,
+  mpInitPoint,
   precioFinal,
   moneda,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [monto, setMonto] = useState<number>(Math.round(precioFinal * 0.1));
-  const [initPoint, setInitPoint] = useState<string | null>(null);
+  const [freshInitPoint, setFreshInitPoint] = useState<string | null>(null);
+
+  const activeLink = freshInitPoint ?? mpInitPoint;
 
   function crear() {
     if (moneda !== "ARS") {
@@ -132,7 +153,7 @@ function MercadoPagoCard({
         toast.error(res.error);
         return;
       }
-      setInitPoint(res.data.init_point);
+      setFreshInitPoint(res.data.init_point);
       toast.success("Preferencia creada — link de pago listo");
     });
   }
@@ -147,13 +168,27 @@ function MercadoPagoCard({
       </CardHeader>
       <CardContent className="space-y-3">
         {mpPaymentId ? (
-          <div className="text-sm">
-            <p className="text-svi-success">Pago confirmado</p>
+          <div className="text-sm space-y-1">
+            <p className="text-svi-success font-medium">Pago confirmado</p>
             <p className="font-mono text-xs text-svi-muted">{mpPaymentId}</p>
             <p className="text-xs text-svi-muted">Estado: {mpStatus ?? "—"}</p>
           </div>
         ) : (
           <>
+            {activeLink && (
+              <div className="rounded-lg border border-svi-gold/30 bg-svi-gold/5 p-3 space-y-2">
+                <p className="text-xs text-svi-muted-2">Link de pago activo</p>
+                <a
+                  href={activeLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-svi-gold hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Abrir checkout
+                </a>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -174,17 +209,6 @@ function MercadoPagoCard({
               )}
               {mpPreferenceId ? "Regenerar link" : "Generar link"}
             </Button>
-            {initPoint && (
-              <a
-                href={initPoint}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-svi-gold hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                Abrir checkout
-              </a>
-            )}
           </>
         )}
       </CardContent>
@@ -194,7 +218,7 @@ function MercadoPagoCard({
 
 function ContratoCard({ ventaId, contratoPath }: Props) {
   const [pending, startTransition] = useTransition();
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [viewing, startView] = useTransition();
 
   function generar() {
     startTransition(async () => {
@@ -203,8 +227,18 @@ function ContratoCard({ ventaId, contratoPath }: Props) {
         toast.error(res.error);
         return;
       }
-      setSignedUrl(res.data.signed_url);
       toast.success("Contrato generado");
+      window.open(res.data.signed_url, "_blank");
+    });
+  }
+
+  function ver() {
+    startView(async () => {
+      const res = await getSignedContratoUrl(ventaId);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       window.open(res.data.signed_url, "_blank");
     });
   }
@@ -219,31 +253,32 @@ function ContratoCard({ ventaId, contratoPath }: Props) {
       </CardHeader>
       <CardContent className="space-y-3">
         {contratoPath ? (
-          <p className="text-xs text-svi-muted-2 font-mono break-all">
-            {contratoPath}
+          <p className="text-xs text-svi-success">
+            Contrato generado y archivado en Storage.
           </p>
         ) : (
           <p className="text-sm text-svi-muted-2">Sin contrato generado.</p>
         )}
-        <Button onClick={generar} disabled={pending} size="sm">
-          {pending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <FileSignature className="h-4 w-4" />
+        <div className="flex flex-wrap gap-2">
+          {contratoPath && (
+            <Button onClick={ver} disabled={viewing} size="sm" variant="ghost">
+              {viewing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              Ver contrato
+            </Button>
           )}
-          {contratoPath ? "Generar nueva versión" : "Generar contrato"}
-        </Button>
-        {signedUrl && (
-          <a
-            href={signedUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-svi-gold hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" />
-            Descargar nuevamente
-          </a>
-        )}
+          <Button onClick={generar} disabled={pending} size="sm">
+            {pending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileSignature className="h-4 w-4" />
+            )}
+            {contratoPath ? "Generar nueva versión" : "Generar contrato"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

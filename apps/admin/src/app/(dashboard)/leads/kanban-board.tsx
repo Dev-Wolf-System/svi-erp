@@ -111,27 +111,25 @@ export function KanbanBoard({ initial }: { initial: LeadsByEstado }) {
   }
 
   return (
-    <>
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 snap-x">
-          {LEAD_ESTADOS.map((estado) => (
-            <Column
-              key={estado}
-              estado={estado}
-              leads={board[estado]}
-              theme={ESTADO_THEME[estado]}
-            />
-          ))}
-        </div>
-        <DragOverlay dropAnimation={null}>
-          {activeLead ? (
-            <div className="rotate-2 opacity-90">
-              <LeadCard lead={activeLead} />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-    </>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="h-full flex gap-4 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
+        {LEAD_ESTADOS.map((estado) => (
+          <Column
+            key={estado}
+            estado={estado}
+            leads={board[estado]}
+            theme={ESTADO_THEME[estado]}
+          />
+        ))}
+      </div>
+      <DragOverlay dropAnimation={null}>
+        {activeLead ? (
+          <div className="rotate-2 opacity-90">
+            <LeadCard lead={activeLead} />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
@@ -150,12 +148,12 @@ function Column({
     <section
       ref={setNodeRef}
       className={cn(
-        "snap-start shrink-0 w-[300px] rounded-xl border bg-svi-card/40 transition-colors",
+        "snap-start shrink-0 w-[300px] h-full flex flex-col rounded-xl border bg-svi-card/40 transition-colors",
         theme.ring,
         isOver && "bg-svi-elevated/60 ring-2 ring-svi-gold/30",
       )}
     >
-      <header className="flex items-center justify-between px-4 py-3 border-b border-svi-border-muted/50">
+      <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-svi-border-muted/50">
         <span className="inline-flex items-center gap-2 text-sm font-semibold text-svi-white">
           <span className={cn("h-2 w-2 rounded-full", theme.dot)} />
           {ESTADO_LABELS[estado]}
@@ -170,7 +168,7 @@ function Column({
         </span>
       </header>
 
-      <div className="p-2 space-y-2 min-h-[120px] max-h-[calc(100vh-280px)] overflow-y-auto">
+      <div className="flex-1 min-h-0 p-2 space-y-2 overflow-y-auto">
         {leads.length === 0 ? (
           <p className="text-center text-xs text-svi-disabled py-8">
             Sin leads

@@ -198,6 +198,7 @@ export async function crearPreferenciaMP(
       .from("ventas")
       .update({
         mp_preference_id: pref.id,
+        mp_init_point: pref.init_point,
         updated_at: new Date().toISOString(),
       })
       .eq("id", ventaId);
@@ -415,5 +416,38 @@ export async function generarContratoVentaPdf(
     .eq("id", ventaId);
 
   revalidatePath(`/ventas/${ventaId}`);
+  return { ok: true, data: { signed_url: signed.signedUrl } };
+}
+
+/**
+ * Devuelve una signed URL fresca (1h) del contrato PDF previamente generado.
+ * Útil para que el operador re-vea el documento sin tener que regenerarlo.
+ */
+export async function getSignedContratoUrl(
+  ventaId: string,
+): Promise<ActionResult<{ signed_url: string }>> {
+  const supabase = await createClient();
+  const { data: v, error } = await supabase
+    .from("ventas")
+    .select("contrato_url")
+    .eq("id", ventaId)
+    .single();
+
+  if (error || !v) {
+    return { ok: false, error: error?.message ?? "Venta no encontrada" };
+  }
+  if (!v.contrato_url) {
+    return { ok: false, error: "Esta venta no tiene contrato generado todavía." };
+  }
+
+  const service = createServiceClient();
+  const { data: signed, error: signErr } = await service.storage
+    .from(CONTRATOS_BUCKET)
+    .createSignedUrl(v.contrato_url, 60 * 60);
+
+  if (signErr || !signed) {
+    return { ok: false, error: `Signed URL: ${signErr?.message ?? "fallida"}` };
+  }
+
   return { ok: true, data: { signed_url: signed.signedUrl } };
 }

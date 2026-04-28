@@ -11,8 +11,8 @@ export default async function LeadsPage() {
   const [leads, total] = await Promise.all([getLeads(), getLeadsCount()]);
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="flex flex-col h-[calc(100vh-7rem)] md:h-[calc(100vh-8rem)] gap-5">
+      <header className="shrink-0 flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link
             href="/clientes"
@@ -25,7 +25,7 @@ export default async function LeadsPage() {
             <p className="text-xs font-mono uppercase tracking-[0.25em] text-svi-gold">
               CRM · pipeline
             </p>
-            <h1 className="mt-2 font-display text-3xl md:text-4xl font-bold text-svi-white">
+            <h1 className="mt-1 font-display text-2xl md:text-3xl font-bold text-svi-white">
               Leads{" "}
               <Badge variant="default" className="ml-2 align-middle">
                 {total} totales
@@ -39,7 +39,9 @@ export default async function LeadsPage() {
         <NewLeadButton />
       </header>
 
-      <KanbanBoard initial={leads} />
+      <div className="flex-1 min-h-0">
+        <KanbanBoard initial={leads} />
+      </div>
     </div>
   );
 }

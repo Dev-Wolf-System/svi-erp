@@ -36,9 +36,11 @@ interface VentaDetail {
   punto_venta: number | null;
   numero_comprobante_afip: string | null;
   afip_driver: string | null;
+  comprobante_afip_url: string | null;
   mp_preference_id: string | null;
   mp_payment_id: string | null;
   mp_status: string | null;
+  mp_init_point: string | null;
   contrato_url: string | null;
   legajo_banco: string | null;
   monto_financiado: string | null;
@@ -293,9 +295,11 @@ export default async function VentaDetailPage({ params }: PageProps) {
         cae={v.cae}
         caeVencimiento={v.cae_vencimiento}
         afipDriver={v.afip_driver}
+        comprobanteAfipUrl={v.comprobante_afip_url}
         mpPreferenceId={v.mp_preference_id}
         mpPaymentId={v.mp_payment_id}
         mpStatus={v.mp_status}
+        mpInitPoint={v.mp_init_point}
         contratoPath={v.contrato_url}
         precioFinal={Number(v.precio_final)}
         moneda={v.moneda}

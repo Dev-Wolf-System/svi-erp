@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus, ShoppingCart } from "lucide-react";
 import { Badge, Button } from "@repo/ui";
 import { getVentasGroupedByEstado, getVentasCount } from "@/modules/ventas/queries";
-import { VentasKanban } from "./ventas-kanban";
+import { VentasView } from "./ventas-view";
 
 export const metadata = { title: "Ventas" };
 
@@ -13,20 +13,20 @@ export default async function VentasPage() {
   ]);
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="flex flex-col h-[calc(100vh-7rem)] md:h-[calc(100vh-8rem)] gap-4">
+      <header className="shrink-0 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-mono uppercase tracking-[0.25em] text-svi-gold">
             Operación · pipeline
           </p>
-          <h1 className="mt-2 font-display text-3xl md:text-4xl font-bold text-svi-white">
+          <h1 className="mt-1 font-display text-2xl md:text-3xl font-bold text-svi-white">
             Ventas{" "}
             <Badge variant="default" className="ml-2 align-middle">
               {counts.total} en proceso
             </Badge>
           </h1>
           <p className="mt-1 text-sm text-svi-muted-2">
-            El estado se cambia desde el detalle de cada operación.
+            Arrastrá las tarjetas con el handle <span className="font-mono">⋮⋮</span> para cambiar el estado, o cambiá a vista lista.
           </p>
         </div>
         <Link href="/ventas/nueva">
@@ -37,7 +37,7 @@ export default async function VentasPage() {
         </Link>
       </header>
 
-      {counts.total === 0 ? <EmptyState /> : <VentasKanban grupos={grupos} />}
+      {counts.total === 0 ? <EmptyState /> : <VentasView grupos={grupos} />}
     </div>
   );
 }
