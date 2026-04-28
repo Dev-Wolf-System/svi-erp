@@ -199,6 +199,57 @@ Migrations actuales (al 2026-04-28):
 - 0001-0011: schema base + RLS + cron
 - 0012: constraints ventas
 - 0013: SECURITY DEFINER en triggers internos
+- 0014: mp_init_point en ventas
+- 0015: contrato_hash + firma_metodo + contrato_version
+
+---
+
+## 13. Cifrado pgsodium para datos bancarios (Fase 5+)
+
+### Estado actual (desarrollo)
+
+Las columnas `inversores.cbu` y `inversores.alias` se guardan **en texto plano**.
+La UI ofusca el CBU al mostrarlo (`0110****5678`), pero la DB lo tiene crudo.
+
+**Por qué se hizo así:** la extensión `pgsodium` ya está habilitada en la
+migration 0001, pero no se cableó a las columnas sensibles porque el flujo de
+keys (Supabase vault, rotación, etc.) requiere planificación operativa que se
+posterga a la Fase 5+ (post-dictamen FCI). Hasta entonces, la operación es
+interna y de bajo volumen — el riesgo es manejable.
+
+### Lo que hay que hacer antes del primer inversor real
+
+1. **Habilitar key management en Supabase Vault** y registrar una key SVI.
+2. **Migración aditiva** que cifra las columnas existentes:
+   ```sql
+   ALTER TABLE inversores
+     ADD COLUMN cbu_encrypted   bytea,
+     ADD COLUMN alias_encrypted bytea;
+
+   UPDATE inversores
+   SET cbu_encrypted   = pgsodium.crypto_aead_det_encrypt(
+                            cbu::bytea, ''::bytea, '<KEY_UUID>'::uuid),
+       alias_encrypted = pgsodium.crypto_aead_det_encrypt(
+                            alias::bytea, ''::bytea, '<KEY_UUID>'::uuid)
+   WHERE cbu IS NOT NULL OR alias IS NOT NULL;
+
+   ALTER TABLE inversores DROP COLUMN cbu, DROP COLUMN alias;
+   ALTER TABLE inversores RENAME COLUMN cbu_encrypted TO cbu;
+   ALTER TABLE inversores RENAME COLUMN alias_encrypted TO alias;
+   ```
+3. **VIEW descifradora** con permiso solo a un rol específico
+   (`inversores_decrypted`) que joineen `pgsodium.decrypted_columns`.
+4. **Actualizar `getInversorById`** para usar la VIEW; `getInversores`
+   (lista) no debe traer CBU/alias.
+5. **Auditoría**: cada acceso a la VIEW queda en `audit_log`.
+6. **Backfill test** — verificar que ningún cliente de la app deja de funcionar.
+
+### Archivos afectados
+
+- `apps/admin/src/modules/inversores/queries.ts` — cambiar el FROM a la VIEW
+- `apps/admin/src/modules/inversores/actions.ts` — usar `pgsodium.crypto_aead_det_encrypt`
+  al INSERT/UPDATE
+- Schema: nueva migration `0016_pgsodium_cbu_alias.sql`
 
 ---
 
