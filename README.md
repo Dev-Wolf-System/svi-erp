@@ -108,7 +108,7 @@ Ver `ROADMAP_DESARROLLO.md` para detalle por fase.
 | 0 | Setup monorepo + schema SQL + RLS + ADRs | ✅ Completo |
 | 1 | Landing premium + portal extranet (mock) | ✅ Completo |
 | 2 | Auth Supabase + middleware + dashboard | ✅ Completo |
-| 3 | Stock CRUD | ✅ Completo (Clientes pendiente) |
+| 3 | Stock CRUD + Clientes + Leads Kanban | ✅ Completo |
 | 4 | Ventas + Bancos + AFIP adapter | ⏳ Pendiente |
 | 5 | Inversiones FCI + extranet real | ⏳ Pendiente |
 | 6 | Caja + cierres | ⏳ Pendiente |
@@ -147,4 +147,4 @@ Para más detalles ver `docs/adr/` y `SVI_PLAN_MAESTRO_DEFINITIVO.md`.
 
 ---
 
-*Mantenido por Dev-Wolf Soluciones IT · Last update: 2026-04-27*
+*Mantenido por Dev-Wolf Soluciones IT · Last update: 2026-04-28*
