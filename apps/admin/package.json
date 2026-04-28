@@ -17,6 +17,8 @@
     "@hookform/resolvers": "^3.10.0",
     "@repo/config": "*",
     "@repo/database": "*",
+    "@repo/integrations": "*",
+    "@repo/pdf": "*",
     "@repo/ui": "*",
     "@repo/utils": "*",
     "@supabase/ssr": "^0.5.0",
