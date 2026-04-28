@@ -20,10 +20,10 @@ const styles = StyleSheet.create({
   },
   brandTextBlock: { flexDirection: "column" },
   brandName: {
-    fontSize: SVI_SIZES.display,
+    fontSize: SVI_SIZES.display - 1,
     fontFamily: SVI_FONTS.display,
     color: SVI_COLORS.black,
-    letterSpacing: 1,
+    letterSpacing: 0.3,
   },
   brandTagline: {
     fontSize: SVI_SIZES.base,
