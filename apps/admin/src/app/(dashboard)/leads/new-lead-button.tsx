@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, X, Loader2, Save } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Button, Field, Input, Textarea } from "@repo/ui";
 import {
   leadCreateSchema,
@@ -57,7 +57,6 @@ export function NewLeadButton() {
 
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       <Button onClick={() => setOpen(true)}>
         <Plus className="h-4 w-4" />
         Nuevo lead

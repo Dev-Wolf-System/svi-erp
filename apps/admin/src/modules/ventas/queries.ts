@@ -2,6 +2,8 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { EstadoVenta, VentaFilters } from "./schemas";
 
+// IMPORTANTE: ventas tiene DOS FKs hacia vehiculos (vehiculo_id y vehiculo_parte_id).
+// PostgREST exige el nombre del constraint para desambiguar — no alcanza con `vehiculos!inner`.
 const LIST_COLUMNS = `
   id, numero_operacion, estado, tipo_pago,
   precio_venta, descuento, precio_final, moneda,
@@ -9,18 +11,18 @@ const LIST_COLUMNS = `
   cae, mp_payment_id, contrato_url,
   vendedor_id, sucursal_id,
   created_at, updated_at,
-  vehiculo:vehiculos!inner ( id, marca, modelo, anio, patente, foto_principal_url ),
-  cliente:clientes!inner ( id, tipo, nombre, apellido, razon_social, dni, cuit ),
-  sucursal:sucursales!inner ( id, nombre, codigo )
+  vehiculo:vehiculos!ventas_vehiculo_id_fkey!inner ( id, marca, modelo, anio, patente, foto_principal_url ),
+  cliente:clientes!ventas_cliente_id_fkey!inner ( id, tipo, nombre, apellido, razon_social, dni, cuit ),
+  sucursal:sucursales!ventas_sucursal_id_fkey!inner ( id, nombre, codigo )
 `;
 
 const DETAIL_COLUMNS = `
   *,
-  vehiculo:vehiculos!inner ( id, marca, modelo, version, anio, patente, color, kilometraje, foto_principal_url ),
-  cliente:clientes!inner ( id, tipo, nombre, apellido, razon_social, dni, cuit, email, telefono, celular, direccion, localidad, provincia ),
-  sucursal:sucursales!inner ( id, nombre, codigo, direccion ),
+  vehiculo:vehiculos!ventas_vehiculo_id_fkey!inner ( id, marca, modelo, version, anio, patente, color, kilometraje, foto_principal_url ),
+  cliente:clientes!ventas_cliente_id_fkey!inner ( id, tipo, nombre, apellido, razon_social, dni, cuit, email, telefono, celular, direccion, localidad, provincia ),
+  sucursal:sucursales!ventas_sucursal_id_fkey!inner ( id, nombre, codigo, direccion ),
   vehiculo_parte:vehiculos!ventas_vehiculo_parte_id_fkey ( id, marca, modelo, anio, patente ),
-  banco:bancos ( id, nombre, contacto, condiciones )
+  banco:bancos!ventas_banco_id_fkey ( id, nombre, contacto, condiciones )
 `;
 
 export interface VentaListRow {

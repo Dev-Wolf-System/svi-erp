@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import {
   ESTADOS_VENTA,
   LABEL_ESTADO,
@@ -34,21 +34,18 @@ export function CambiarEstadoSelect({
   }
 
   return (
-    <>
-      <Toaster theme="dark" position="top-right" richColors />
-      <select
-        defaultValue={estadoActual}
-        onChange={onChange}
-        disabled={pending}
-        aria-label="Cambiar estado"
-        className="h-9 rounded-lg border border-svi-border-muted bg-svi-dark px-3 text-xs text-svi-white focus:border-svi-gold focus:outline-none disabled:opacity-50"
-      >
-        {ESTADOS_VENTA.filter((e) => e !== "anulado").map((e) => (
-          <option key={e} value={e}>
-            → {LABEL_ESTADO[e]}
-          </option>
-        ))}
-      </select>
-    </>
+    <select
+      defaultValue={estadoActual}
+      onChange={onChange}
+      disabled={pending}
+      aria-label="Cambiar estado"
+      className="h-9 rounded-lg border border-svi-border-muted bg-svi-dark px-3 text-xs text-svi-white focus:border-svi-gold focus:outline-none disabled:opacity-50"
+    >
+      {ESTADOS_VENTA.filter((e) => e !== "anulado").map((e) => (
+        <option key={e} value={e}>
+          → {LABEL_ESTADO[e]}
+        </option>
+      ))}
+    </select>
   );
 }

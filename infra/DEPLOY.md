@@ -2,6 +2,19 @@
 
 Guía operativa para levantar las apps Next.js en el mismo VPS donde corre Supabase.
 
+> ⚠️ **Stack actualizado (2026-04-28)**: el reverse proxy ahora es **Traefik**
+> (no Caddy). Está corriendo externamente en el VPS junto con n8n y evolution-api.
+> Las apps SVI se conectan vía labels Traefik a las redes externas
+> `n8n_evoapi` y `supabase_network`.
+>
+> **Documentos vivos:**
+> - `.env.production.example` — variables + checklist pre-deploy de 8 pasos
+> - `docker-compose.yml` — services con Traefik labels
+> - `docs/PRODUCTION_HARDENING.md` — qué cambiar antes del primer tráfico real
+>
+> Las referencias a Caddy en este archivo son **históricas** — se mantienen
+> para referencia hasta refactorizar la guía completa.
+
 ---
 
 ## 1. Requisitos en el VPS

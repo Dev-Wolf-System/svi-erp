@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { Loader2, Power } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Button } from "@repo/ui";
 import { toggleBancoActivo } from "@/modules/bancos/actions";
 
@@ -28,7 +28,6 @@ export function ToggleActivoButton({
 
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       <Button
         variant={activo ? "destructive" : "secondary"}
         size="sm"

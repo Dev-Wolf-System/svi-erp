@@ -8,7 +8,7 @@ import {
   Loader2,
   ExternalLink,
 } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import {
   Button,
   Card,
@@ -39,7 +39,6 @@ interface Props {
 export function AccionesCard(props: Props) {
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       <div className="grid gap-6 lg:grid-cols-3">
         <AfipCard {...props} />
         <MercadoPagoCard {...props} />

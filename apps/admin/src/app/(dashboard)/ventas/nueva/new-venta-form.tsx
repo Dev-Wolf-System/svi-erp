@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import {
   Button,
   Card,
@@ -121,7 +121,6 @@ export function NewVentaForm({ sucursales, vehiculos, clientes, bancos }: Props)
 
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardHeader>

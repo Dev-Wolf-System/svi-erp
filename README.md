@@ -23,10 +23,12 @@ svi-erp/
 │   ├── database/         Drizzle schema + clientes Supabase SSR
 │   ├── config/           tokens Tailwind v4 (@theme) + constantes
 │   ├── utils/            helpers (formato ARS/USD, RBAC, JWT types)
+│   ├── integrations/     AFIP adapter (stub) + Mercado Pago + tests
+│   ├── pdf/              @react-pdf/renderer · contrato venta SVI + tests
 │   ├── eslint-config/    configs ESLint compartidas
 │   └── typescript-config/ tsconfigs compartidos
 ├── supabase/
-│   ├── migrations/       11 migraciones SQL versionadas
+│   ├── migrations/       13 migraciones SQL versionadas
 │   ├── seed/             datos demo
 │   ├── _consolidated_schema.sql  todo en un archivo (para SQL Editor)
 │   └── SETUP.md          guía operativa de inicialización
@@ -109,7 +111,7 @@ Ver `ROADMAP_DESARROLLO.md` para detalle por fase.
 | 1 | Landing premium + portal extranet (mock) | ✅ Completo |
 | 2 | Auth Supabase + middleware + dashboard | ✅ Completo |
 | 3 | Stock CRUD + Clientes + Leads Kanban | ✅ Completo |
-| 4 | Ventas + Bancos + AFIP adapter | ⏳ Pendiente |
+| 4 | Ventas + Bancos + AFIP/MP/PDF | ✅ Completo (driver stub) |
 | 5 | Inversiones FCI + extranet real | ⏳ Pendiente |
 | 6 | Caja + cierres | ⏳ Pendiente |
 | 7 | RRHH | ⏳ Pendiente |
@@ -121,7 +123,13 @@ Ver `ROADMAP_DESARROLLO.md` para detalle por fase.
 
 ## 🚢 Deploy
 
-Ver `infra/DEPLOY.md` — VPS con Docker Compose + Caddy (SSL automático).
+Ver `.env.production.example` para checklist completo y `docker-compose.yml` con
+Traefik labels (SSL automático). Subdominios provisionales hasta adquirir dominio:
+- `svi.srv878399.hstgr.cloud` → landing + portal cliente/inversor
+- `svi-erp.srv878399.hstgr.cloud` → sistema interno
+
+Pre-deploy: ver `docs/PRODUCTION_HARDENING.md` (mensajes de error amigables,
+borrar `/debug/jwt`, 2FA admin, rate limiting, etc).
 
 ```bash
 # En el VPS

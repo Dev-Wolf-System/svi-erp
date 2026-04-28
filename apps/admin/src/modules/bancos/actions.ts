@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getSviClaims } from "@/lib/auth/claims";
 import {
   bancoCreateSchema,
   bancoUpdateSchema,
@@ -33,18 +34,13 @@ export async function createBanco(
     };
   }
 
+  const claims = await getSviClaims();
+  if (!claims) return { ok: false, error: "No autenticado o sin claims SVI en el JWT" };
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "No autenticado" };
-
-  const empresaId = (user.app_metadata as { empresa_id?: string }).empresa_id;
-  if (!empresaId) return { ok: false, error: "Sin empresa_id en JWT (revisar hook)" };
-
   const { data, error } = await supabase
     .from("bancos")
-    .insert({ ...nullify(parsed.data), empresa_id: empresaId })
+    .insert({ ...nullify(parsed.data), empresa_id: claims.empresa_id })
     .select("id")
     .single();
 

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Loader2 } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Button } from "@repo/ui";
 import { anularVenta } from "@/modules/ventas/actions";
 
@@ -32,7 +32,6 @@ export function AnularButton({ id }: { id: string }) {
 
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       {!open ? (
         <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
           <Trash2 className="h-4 w-4" />

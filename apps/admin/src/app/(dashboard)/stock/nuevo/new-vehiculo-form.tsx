@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Textarea } from "@repo/ui";
 import { vehiculoCreateSchema, type VehiculoCreateInput } from "@/modules/stock";
 import { createVehiculo } from "@/modules/stock/actions";
@@ -56,7 +56,6 @@ export function NewVehiculoForm({ sucursales }: { sucursales: Sucursal[] }) {
 
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardHeader>

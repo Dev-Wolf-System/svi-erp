@@ -41,13 +41,15 @@ export async function emitirFacturaAfip(
     .select(
       `
       id, cae, precio_final, moneda,
-      cliente:clientes!inner ( tipo, nombre, apellido, razon_social, cuit, dni )
+      cliente:clientes!ventas_cliente_id_fkey!inner ( tipo, nombre, apellido, razon_social, cuit, dni )
     `,
     )
     .eq("id", ventaId)
     .single();
 
-  if (error || !venta) return { ok: false, error: "Venta no encontrada" };
+  if (error || !venta) {
+    return { ok: false, error: error?.message ?? "Venta no encontrada" };
+  }
   if (venta.cae) return { ok: false, error: "Esta venta ya tiene CAE emitido" };
 
   const cliente = (
@@ -141,14 +143,16 @@ export async function crearPreferenciaMP(
     .select(
       `
       id, numero_operacion, sucursal_id, mp_preference_id,
-      cliente:clientes!inner ( email, nombre, apellido ),
-      vehiculo:vehiculos!inner ( marca, modelo, anio )
+      cliente:clientes!ventas_cliente_id_fkey!inner ( email, nombre, apellido ),
+      vehiculo:vehiculos!ventas_vehiculo_id_fkey!inner ( marca, modelo, anio )
     `,
     )
     .eq("id", ventaId)
     .single();
 
-  if (error || !venta) return { ok: false, error: "Venta no encontrada" };
+  if (error || !venta) {
+    return { ok: false, error: error?.message ?? "Venta no encontrada" };
+  }
   if (montoSenia <= 0) return { ok: false, error: "Monto debe ser mayor a 0" };
 
   const cliente = (
@@ -228,18 +232,20 @@ export async function generarContratoVentaPdf(
       id, empresa_id, numero_operacion, created_at,
       precio_venta, descuento, precio_final, moneda, tipo_pago, notas,
       valor_parte, banco_id, legajo_banco, monto_financiado, cuotas, tasa_banco,
-      cliente:clientes!inner ( tipo, nombre, apellido, razon_social, cuit, dni, direccion, telefono, email ),
-      vehiculo:vehiculos!inner ( marca, modelo, anio, patente, kilometraje, color ),
+      cliente:clientes!ventas_cliente_id_fkey!inner ( tipo, nombre, apellido, razon_social, cuit, dni, direccion, telefono, email ),
+      vehiculo:vehiculos!ventas_vehiculo_id_fkey!inner ( marca, modelo, anio, patente, kilometraje, color ),
       vehiculo_parte:vehiculos!ventas_vehiculo_parte_id_fkey ( marca, modelo, anio, patente ),
-      banco:bancos ( nombre ),
-      sucursal:sucursales!inner ( nombre, direccion ),
-      empresa:empresas!inner ( razon_social, cuit, telefono, email )
+      banco:bancos!ventas_banco_id_fkey ( nombre ),
+      sucursal:sucursales!ventas_sucursal_id_fkey!inner ( nombre, direccion, telefono, email ),
+      empresa:empresas!ventas_empresa_id_fkey!inner ( nombre, razon_social, cuit )
     `,
     )
     .eq("id", ventaId)
     .single();
 
-  if (error || !v) return { ok: false, error: "Venta no encontrada" };
+  if (error || !v) {
+    return { ok: false, error: error?.message ?? "Venta no encontrada" };
+  }
 
   const cliente = (Array.isArray(v.cliente) ? v.cliente[0] : v.cliente) as {
     tipo: "persona" | "empresa";
@@ -264,14 +270,18 @@ export async function generarContratoVentaPdf(
   };
   const sucursal = (
     Array.isArray(v.sucursal) ? v.sucursal[0] : v.sucursal
-  ) as { nombre: string; direccion: string | null };
+  ) as {
+    nombre: string;
+    direccion: string | null;
+    telefono: string | null;
+    email: string | null;
+  };
   const empresa = (
     Array.isArray(v.empresa) ? v.empresa[0] : v.empresa
   ) as {
-    razon_social: string;
-    cuit: string;
-    telefono: string | null;
-    email: string | null;
+    nombre: string;
+    razon_social: string | null;
+    cuit: string | null;
   };
 
   const vehiculoParteRaw = Array.isArray(v.vehiculo_parte)
@@ -288,11 +298,11 @@ export async function generarContratoVentaPdf(
 
   const data: ContratoVentaData = {
     empresa: {
-      nombre: "SVI",
-      razon_social: empresa.razon_social,
-      cuit: empresa.cuit,
-      telefono: empresa.telefono,
-      email: empresa.email,
+      nombre: empresa.nombre,
+      razon_social: empresa.razon_social ?? empresa.nombre,
+      cuit: empresa.cuit ?? "",
+      telefono: sucursal.telefono,
+      email: sucursal.email,
     },
     sucursal: {
       nombre: sucursal.nombre,

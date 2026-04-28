@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Loader2 } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Button } from "@repo/ui";
 import { softDeleteVehiculo } from "@/modules/stock/actions";
 
@@ -31,7 +31,6 @@ export function DeleteButton({ id }: { id: string }) {
 
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       <Button variant="destructive" size="sm" onClick={handleClick} disabled={pending}>
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
         {confirming ? "¿Confirmar?" : "Dar de baja"}

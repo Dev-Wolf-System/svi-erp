@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getSviClaims } from "@/lib/auth/claims";
 import {
   vehiculoCreateSchema,
   vehiculoUpdateSchema,
@@ -20,21 +21,16 @@ export async function createVehiculo(input: VehiculoCreateInput): Promise<Action
     return { ok: false, error: "Datos inválidos", fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const claims = await getSviClaims();
+  if (!claims) return { ok: false, error: "No autenticado o sin claims SVI en el JWT" };
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "No autenticado" };
-
-  const empresaId = (user.app_metadata as { empresa_id?: string }).empresa_id;
-  if (!empresaId) return { ok: false, error: "Sin empresa_id en JWT (revisar hook)" };
-
   const { data, error } = await supabase
     .from("vehiculos")
     .insert({
       ...parsed.data,
-      empresa_id: empresaId,
-      ingresado_por: user.id,
+      empresa_id: claims.empresa_id,
+      ingresado_por: claims.sub,
     })
     .select("id")
     .single();

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getSviClaims } from "@/lib/auth/claims";
 import {
   ventaCreateSchema,
   ventaCambioEstadoSchema,
@@ -41,15 +42,10 @@ export async function createVenta(
     };
   }
 
+  const claims = await getSviClaims();
+  if (!claims) return { ok: false, error: "No autenticado o sin claims SVI en el JWT" };
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "No autenticado" };
-
-  const empresaId = (user.app_metadata as { empresa_id?: string }).empresa_id;
-  if (!empresaId) return { ok: false, error: "Sin empresa_id en JWT" };
-
   const { data: sucursal, error: sucErr } = await supabase
     .from("sucursales")
     .select("codigo")
@@ -62,7 +58,7 @@ export async function createVenta(
   const { data: numeroData, error: rpcErr } = await supabase.rpc(
     "generar_numero_operacion",
     {
-      p_empresa_id: empresaId,
+      p_empresa_id: claims.empresa_id,
       p_tipo: "venta",
       p_codigo_sucursal: sucursal.codigo,
     },
@@ -75,7 +71,7 @@ export async function createVenta(
     .from("ventas")
     .insert({
       ...nullify(parsed.data),
-      empresa_id: empresaId,
+      empresa_id: claims.empresa_id,
       numero_operacion: numeroData as string,
       estado: "reserva",
     })

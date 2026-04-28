@@ -12,7 +12,7 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { cn } from "@repo/utils";
 import {
   ESTADO_LABELS,
@@ -112,7 +112,6 @@ export function KanbanBoard({ initial }: { initial: LeadsByEstado }) {
 
   return (
     <>
-      <Toaster theme="dark" position="top-right" richColors />
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 snap-x">
           {LEAD_ESTADOS.map((estado) => (

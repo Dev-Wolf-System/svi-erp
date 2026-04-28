@@ -209,12 +209,60 @@ Causa: PostgreSQL no tiene `MIN(uuid)` nativo. Solucionado en commit `6ee00fc` s
 
 ---
 
-## 10. Próximos pasos
+## 10. Storage buckets
 
-- ✅ Schema aplicado
+### Bucket `contratos-pdf` (privado) — F4
+
+Necesario antes de generar el primer contrato de venta. Studio → Storage:
+
+1. **New bucket** → Name: `contratos-pdf` → Public: **OFF**
+2. File size limit: `5 MB`
+3. Allowed MIME types: `application/pdf`
+
+O por SQL Editor:
+
+```sql
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('contratos-pdf', 'contratos-pdf', false, 5242880, ARRAY['application/pdf']);
+```
+
+No requiere policies de `storage.objects` — el código usa `createServiceClient()`
+(service_role) que bypassa RLS por diseño. Las descargas se sirven con signed
+URLs de 1h, no `getPublicUrl`.
+
+### Bucket `vehiculos-fotos` (público) — F3
+
+Pendiente. Cuando se conecte la subida de fotos del módulo stock.
+
+---
+
+## 11. Migrations aplicadas (al 2026-04-28)
+
+```
+0001_extensions_and_enums.sql       ✅
+0002_core_tables.sql                ✅
+0003_jwt_claims_hook.sql            ✅
+0004_numeracion_atomica.sql         ✅
+0005_clientes_y_leads.sql           ✅
+0006_vehiculos.sql                  ✅
+0007_inversiones_fci.sql            ✅
+0008_ventas_y_bancos.sql            ✅
+0009_caja.sql                       ✅
+0010_rls_policies.sql               ✅
+0011_cron_jobs.sql                  ✅
+0012_ventas_constraints.sql         ✅  (F4 — checks parte_pago/financiado, snapshot comisión)
+0013_security_definer_internals.sql ✅  (F4.1 — fix RLS audit_log + numeracion)
+```
+
+---
+
+## 12. Próximos pasos
+
+- ✅ Schema aplicado (0001-0013)
 - ✅ Hook JWT activo
 - ✅ Usuario admin creado
-- ✅ Stock conectado a DB real (Fase 3)
-- ⏳ Clientes CRUD + pipeline de leads (Fase 3 parte 2)
-- ⏳ Configurar Storage buckets para fotos de vehículos
-- ⏳ Mover N8N webhooks a Edge Functions (Fase 9)
+- ✅ Stock + Clientes + Leads + Bancos + Ventas conectados a DB real (F3 + F4)
+- ✅ Bucket `contratos-pdf` creado
+- ⏳ Webhook `/api/webhooks/mercadopago` para confirmar pagos (F4.5)
+- ⏳ Configurar bucket `vehiculos-fotos` para fotos de stock
+- ⏳ Inversiones FCI (F5)
