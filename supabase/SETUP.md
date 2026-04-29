@@ -234,6 +234,20 @@ URLs de 1h, no `getPublicUrl`.
 
 Pendiente. Cuando se conecte la subida de fotos del módulo stock.
 
+### Bucket `recibos-liquidacion` (privado) — F5.4.1
+
+Necesario antes del primer pago de liquidación con recibo. Studio → Storage:
+
+```sql
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('recibos-liquidacion', 'recibos-liquidacion', false, 5242880, ARRAY['application/pdf']);
+```
+
+Path por archivo: `{empresa_id}/{inversion_id}/{liquidacion_id}.pdf`. Cada
+liquidación tiene UN solo recibo (no se versiona — corregir requiere anular
+y regenerar). El upload usa `upsert: true` para tolerar regeneraciones tras
+errores transitorios.
+
 ### Bucket `contratos-fci` (privado) — F5.5
 
 Necesario antes de generar el primer contrato FCI. Studio → Storage:
@@ -276,6 +290,7 @@ y `createSignedUrl(60*60)` para servir. Path versionado e inmutable:
 0015_contrato_hash_y_firma_metodo.sql ✅ (F4.6 — autenticidad PDF: hash + firma_metodo + version)
 0016_inversores_notas.sql           ✅  (F5.1 — campo notas en inversores)
 0017_inversiones_contrato_hash.sql  ✅  (F5.5 — autenticidad PDF FCI: hash + version)
+0018_liquidaciones_recibo_y_modo.sql ✅ (F5.4.1 — modo retirar/reinvertir + recibo PDF)
 ```
 
 ---

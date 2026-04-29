@@ -13,6 +13,9 @@ export const METODOS_PAGO = [
 ] as const;
 export type MetodoPago = (typeof METODOS_PAGO)[number];
 
+export const MODOS_PAGO_INVERSOR = ["retirar", "reinvertir"] as const;
+export type ModoPagoInversor = (typeof MODOS_PAGO_INVERSOR)[number];
+
 /**
  * Period is a YYYY-MM-DD anchored to the first of the month.
  * Acepta también YYYY-MM y normaliza.
@@ -31,6 +34,8 @@ export const liquidacionGenerarSchema = z.object({
 export const liquidacionPagarSchema = z.object({
   id: z.string().uuid(),
   metodo_pago: z.enum(METODOS_PAGO),
+  /** Decisión del inversor: retirar el dinero o reinvertirlo al capital. */
+  modo_pago_inversor: z.enum(MODOS_PAGO_INVERSOR).default("retirar"),
   fecha_pago: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}/, "Fecha YYYY-MM-DD requerida")
@@ -77,4 +82,9 @@ export const LABEL_METODO_PAGO: Record<MetodoPago, string> = {
   mercadopago: "Mercado Pago",
   compensacion: "Compensación",
   otro: "Otro",
+};
+
+export const LABEL_MODO_PAGO_INVERSOR: Record<ModoPagoInversor, string> = {
+  retirar: "Retiro al inversor",
+  reinvertir: "Reinversión al capital",
 };

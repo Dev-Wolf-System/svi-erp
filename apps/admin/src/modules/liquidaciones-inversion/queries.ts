@@ -5,7 +5,8 @@ import type { EstadoLiquidacion, LiquidacionFilters } from "./schemas";
 const LIST_COLUMNS = `
   id, periodo, estado,
   capital_base, tasa_aplicada, monto_interes, moneda,
-  fecha_pago, metodo_pago, comprobante_url, external_ref,
+  fecha_pago, metodo_pago, modo_pago_inversor, comprobante_url, external_ref,
+  recibo_url,
   created_at,
   inversion:inversiones!liquidaciones_inversion_inversion_id_fkey!inner (
     id, numero_contrato,
@@ -23,8 +24,10 @@ export interface LiquidacionListRow {
   moneda: string;
   fecha_pago: string | null;
   metodo_pago: string | null;
+  modo_pago_inversor: "retirar" | "reinvertir";
   comprobante_url: string | null;
   external_ref: string | null;
+  recibo_url: string | null;
   created_at: string;
   inversion: {
     id: string;
