@@ -38,6 +38,9 @@ services:
       - PORT=3000
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      # REQUERIDO desde F5.6 — el portal del inversor consulta con
+      # service_role y filtro explícito por inversor_id (no usa RLS de admin).
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - NEXT_PUBLIC_APP_URL=https://${WEB_HOST}
       - NEXT_PUBLIC_ADMIN_URL=https://${ADMIN_HOST}
       - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
