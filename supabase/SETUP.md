@@ -291,6 +291,7 @@ y `createSignedUrl(60*60)` para servir. Path versionado e inmutable:
 0016_inversores_notas.sql           ✅  (F5.1 — campo notas en inversores)
 0017_inversiones_contrato_hash.sql  ✅  (F5.5 — autenticidad PDF FCI: hash + version)
 0018_liquidaciones_recibo_y_modo.sql ✅ (F5.4.1 — modo retirar/reinvertir + recibo PDF)
+0019_inversion_aportes.sql          ✅  (F5.4.3 — aportes adicionales del inversor)
 ```
 
 ---

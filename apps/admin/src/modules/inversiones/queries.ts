@@ -127,6 +127,29 @@ export async function getTasaHistorial(inversionId: string): Promise<TasaHistori
   return (data ?? []) as TasaHistorialRow[];
 }
 
+export interface AporteRow {
+  id: string;
+  monto: string;
+  moneda: string;
+  fecha_aporte: string;
+  motivo: string | null;
+  comprobante_url: string | null;
+  created_at: string;
+}
+
+export async function getAportesPorInversion(
+  inversionId: string,
+): Promise<AporteRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("inversion_aportes")
+    .select("id, monto, moneda, fecha_aporte, motivo, comprobante_url, created_at")
+    .eq("inversion_id", inversionId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`getAportesPorInversion: ${error.message}`);
+  return (data ?? []) as AporteRow[];
+}
+
 /**
  * Lista inversores activos para el select del form de alta.
  * Trae solo (id, nombre) — los datos sensibles se piden en el detalle.

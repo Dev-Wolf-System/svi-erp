@@ -22,9 +22,11 @@ import {
 import {
   getInversionById,
   getTasaHistorial,
+  getAportesPorInversion,
 } from "@/modules/inversiones/queries";
 import { getLiquidacionesPorInversion } from "@/modules/liquidaciones-inversion/queries";
 import { LiquidacionesInversionPanel } from "./liquidaciones-panel";
+import { AportesPanel } from "./aportes-panel";
 import {
   LABEL_ESTADO,
   LABEL_TIPO_INSTRUMENTO,
@@ -85,9 +87,10 @@ export default async function InversionDetailPage({ params }: PageProps) {
   const v = (await getInversionById(id)) as InversionDetail | null;
   if (!v) notFound();
 
-  const [historial, liquidaciones] = await Promise.all([
+  const [historial, liquidaciones, aportes] = await Promise.all([
     getTasaHistorial(id),
     getLiquidacionesPorInversion(id),
+    getAportesPorInversion(id),
   ]);
   const moneda = v.moneda as "ARS" | "USD";
 
@@ -295,6 +298,15 @@ export default async function InversionDetailPage({ params }: PageProps) {
         contratoUrl={v.contrato_url}
         contratoVersion={v.contrato_version}
         contratoHash={v.contrato_hash}
+      />
+
+      <AportesPanel
+        inversionId={v.id}
+        estado={v.estado}
+        moneda={moneda}
+        capitalActual={Number(v.capital_actual)}
+        capitalInicial={Number(v.capital_inicial)}
+        aportes={aportes}
       />
 
       <LiquidacionesInversionPanel

@@ -78,6 +78,23 @@ export const inversionCambioEstadoSchema = z.object({
   estado: z.enum(ESTADOS_INVERSION),
 });
 
+export const aporteRegistrarSchema = z.object({
+  inversion_id: z.string().uuid(),
+  monto: positiveDecimal,
+  fecha_aporte: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/, "Fecha YYYY-MM-DD requerida"),
+  motivo: z.string().max(500).optional().nullable(),
+  comprobante_url: z
+    .string()
+    .url("URL inválida")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+});
+
+export type AporteRegistrarInput = z.infer<typeof aporteRegistrarSchema>;
+
 export const inversionFiltersSchema = z.object({
   search: z.string().optional(),
   estado: z.enum(ESTADOS_INVERSION).optional(),

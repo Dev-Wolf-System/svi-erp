@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redondearMoneda } from "@repo/utils/calculos-fci";
 import { createClient } from "@/lib/supabase/server";
 import { getSviClaims } from "@/lib/auth/claims";
 import {
@@ -8,10 +9,12 @@ import {
   inversionUpdateSchema,
   inversionCambioTasaSchema,
   inversionCambioEstadoSchema,
+  aporteRegistrarSchema,
   type InversionCreateInput,
   type InversionUpdateInput,
   type InversionCambioTasaInput,
   type InversionCambioEstadoInput,
+  type AporteRegistrarInput,
 } from "./schemas";
 
 type ActionResult<T = unknown> =
@@ -229,4 +232,107 @@ export async function softDeleteInversion(id: string): Promise<ActionResult> {
 
   revalidatePath("/inversiones");
   return { ok: true, data: null };
+}
+
+/**
+ * Registra un aporte adicional de capital del inversor sobre una inversión
+ * existente. Insert auditable + UPDATE capital_actual con redondeo half-even.
+ *
+ * Reglas:
+ *   - La inversión debe estar activa.
+ *   - El monto debe ser > 0 (validado en schema).
+ *   - La moneda del aporte hereda la de la inversión — no se mezclan
+ *     monedas en una misma inversión.
+ *
+ * NO regenera el contrato PDF. El operador puede regenerarlo desde el
+ * panel cuando quiera dejarlo asentado por escrito (el hash canónico va
+ * a cambiar porque capital_actual es derivado del aporte, pero NO afecta
+ * al contrato base — el contrato hashea capital_inicial, que es inmutable).
+ */
+export async function registrarAporte(
+  input: AporteRegistrarInput,
+): Promise<
+  ActionResult<{
+    id: string;
+    capital_actual_post: number;
+    moneda: "ARS" | "USD";
+  }>
+> {
+  const parsed = aporteRegistrarSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Datos inválidos",
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const claims = await getSviClaims();
+  if (!claims) return { ok: false, error: "No autenticado" };
+
+  const supabase = await createClient();
+  const { data: inv, error: invErr } = await supabase
+    .from("inversiones")
+    .select("id, estado, moneda, capital_actual")
+    .eq("id", parsed.data.inversion_id)
+    .is("deleted_at", null)
+    .single();
+  if (invErr || !inv) {
+    return { ok: false, error: "Inversión no encontrada" };
+  }
+  if (inv.estado !== "activa") {
+    return {
+      ok: false,
+      error: `No se pueden registrar aportes en una inversión ${inv.estado}`,
+    };
+  }
+
+  const monto = parsed.data.monto;
+  const capitalAnterior = Number(inv.capital_actual);
+  const capitalPost = redondearMoneda(capitalAnterior + monto);
+  const ahoraIso = new Date().toISOString();
+
+  // 1. INSERT aporte
+  const { data: aporte, error: insErr } = await supabase
+    .from("inversion_aportes")
+    .insert({
+      empresa_id: claims.empresa_id,
+      inversion_id: parsed.data.inversion_id,
+      monto,
+      moneda: inv.moneda,
+      fecha_aporte: parsed.data.fecha_aporte,
+      motivo: parsed.data.motivo ?? null,
+      comprobante_url:
+        parsed.data.comprobante_url && parsed.data.comprobante_url !== ""
+          ? parsed.data.comprobante_url
+          : null,
+      registrado_por: claims.sub,
+    })
+    .select("id")
+    .single();
+  if (insErr) return { ok: false, error: insErr.message };
+
+  // 2. UPDATE capital_actual
+  const { error: updErr } = await supabase
+    .from("inversiones")
+    .update({ capital_actual: capitalPost, updated_at: ahoraIso })
+    .eq("id", parsed.data.inversion_id);
+  if (updErr) {
+    // Aporte quedó insertado pero capital no se actualizó — log y avisamos.
+    return {
+      ok: false,
+      error: `Aporte registrado, pero no pudo actualizarse el capital: ${updErr.message}`,
+    };
+  }
+
+  revalidatePath(`/inversiones/${parsed.data.inversion_id}`);
+  revalidatePath("/inversiones");
+  return {
+    ok: true,
+    data: {
+      id: aporte.id,
+      capital_actual_post: capitalPost,
+      moneda: (inv.moneda as "ARS" | "USD") ?? "ARS",
+    },
+  };
 }
