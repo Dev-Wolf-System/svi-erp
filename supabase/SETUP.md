@@ -254,6 +254,7 @@ Pendiente. Cuando se conecte la subida de fotos del módulo stock.
 0013_security_definer_internals.sql ✅  (F4.1 — fix RLS audit_log + numeracion)
 0014_mp_init_point.sql              ✅  (F4.5 — persistir init_point MP)
 0015_contrato_hash_y_firma_metodo.sql ✅ (F4.6 — autenticidad PDF: hash + firma_metodo + version)
+0016_inversores_notas.sql           ✅  (F5.1 — campo notas en inversores)
 ```
 
 ---
