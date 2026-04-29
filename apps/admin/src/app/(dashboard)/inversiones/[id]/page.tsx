@@ -38,6 +38,7 @@ import {
 import { CambiarTasaButton } from "./cambiar-tasa-button";
 import { CambiarEstadoButton } from "./cambiar-estado-button";
 import { DeleteButton } from "./delete-button";
+import { ContratoFciCard } from "./contrato-card";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -58,6 +59,8 @@ interface InversionDetail {
   fecha_vencimiento: string | null;
   observaciones: string | null;
   contrato_url: string | null;
+  contrato_hash: string | null;
+  contrato_version: number;
   created_at: string;
   updated_at: string;
   inversor: {
@@ -286,6 +289,13 @@ export default async function InversionDetailPage({ params }: PageProps) {
           )}
         </CardContent>
       </Card>
+
+      <ContratoFciCard
+        inversionId={v.id}
+        contratoUrl={v.contrato_url}
+        contratoVersion={v.contrato_version}
+        contratoHash={v.contrato_hash}
+      />
 
       <LiquidacionesInversionPanel
         inversionId={v.id}

@@ -234,6 +234,26 @@ URLs de 1h, no `getPublicUrl`.
 
 Pendiente. Cuando se conecte la subida de fotos del módulo stock.
 
+### Bucket `contratos-fci` (privado) — F5.5
+
+Necesario antes de generar el primer contrato FCI. Studio → Storage:
+
+1. **New bucket** → Name: `contratos-fci` → Public: **OFF**
+2. File size limit: `5 MB`
+3. Allowed MIME types: `application/pdf`
+
+O por SQL Editor:
+
+```sql
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('contratos-fci', 'contratos-fci', false, 5242880, ARRAY['application/pdf']);
+```
+
+Mismo patrón que `contratos-pdf` (ventas): no requiere policies de
+`storage.objects` porque el código usa `createServiceClient()` para subir
+y `createSignedUrl(60*60)` para servir. Path versionado e inmutable:
+`{empresa_id}/{inversion_id}/{numero_contrato}-vN.pdf`.
+
 ---
 
 ## 11. Migrations aplicadas (al 2026-04-28)
@@ -255,6 +275,7 @@ Pendiente. Cuando se conecte la subida de fotos del módulo stock.
 0014_mp_init_point.sql              ✅  (F4.5 — persistir init_point MP)
 0015_contrato_hash_y_firma_metodo.sql ✅ (F4.6 — autenticidad PDF: hash + firma_metodo + version)
 0016_inversores_notas.sql           ✅  (F5.1 — campo notas en inversores)
+0017_inversiones_contrato_hash.sql  ✅  (F5.5 — autenticidad PDF FCI: hash + version)
 ```
 
 ---

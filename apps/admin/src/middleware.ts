@@ -19,6 +19,7 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/v/") ||
+    request.nextUrl.pathname.startsWith("/vi/") ||
     request.nextUrl.pathname === "/";
 
   // Si no hay Supabase configurado (ej. dev local sin env), no bloqueamos

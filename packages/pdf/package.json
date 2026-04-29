@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./contrato-venta": "./src/contrato-venta/index.ts",
+    "./contrato-fci": "./src/contrato-fci/index.ts",
     "./theme": "./src/theme.ts",
     "./fonts": "./src/fonts.ts"
   },
