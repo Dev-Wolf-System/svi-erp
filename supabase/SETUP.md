@@ -104,16 +104,23 @@ VALUES (
 
 ## 4. Configurar redirect URLs
 
-En **Authentication → URL Configuration**:
+Esto se setea en `/root/supabase-svi/.env` del VPS (variable
+`ADDITIONAL_REDIRECT_URLS`) y/o en **Studio → Authentication → URL
+Configuration**.
 
 ```
-Site URL: http://localhost:3001       (dev: admin)
-Redirect URLs:
-  http://localhost:3000/**            (web local)
-  http://localhost:3001/**            (admin local)
-  https://app.svi.com.ar/**           (admin prod — agregar cuando exista)
-  https://svi.com.ar/portal/**        (portal prod)
+Site URL: https://svi-erp.srv878399.hstgr.cloud   (admin prod)
+
+Redirect URLs (combinación de dev + prod):
+  http://localhost:3000/**                          (web local)
+  http://localhost:3001/**                          (admin local)
+  https://svi.srv878399.hstgr.cloud/**              (web prod — portal extranet)
+  https://svi-erp.srv878399.hstgr.cloud/**          (admin prod — ERP)
 ```
+
+Si activás portal del inversor (F5.6) sin `https://svi.srv878399.hstgr.cloud/**`
+en redirect URLs, los magic links / reset de password fallan con
+"URL no permitida". Ver `docs/PRODUCTION_HARDENING.md §14.3`.
 
 ---
 

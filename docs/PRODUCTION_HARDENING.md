@@ -195,12 +195,17 @@ SELECT version, name FROM schema_migrations ORDER BY version;  -- si usás supab
 SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
 ```
 
-Migrations actuales (al 2026-04-28):
+Migrations actuales (al 2026-04-29):
 - 0001-0011: schema base + RLS + cron
 - 0012: constraints ventas
 - 0013: SECURITY DEFINER en triggers internos
 - 0014: mp_init_point en ventas
 - 0015: contrato_hash + firma_metodo + contrato_version
+- 0016: notas en inversores
+- 0017: contrato_hash + version en inversiones
+- 0018: liquidaciones recibo + modo retirar/reinvertir
+- 0019: aportes adicionales del inversor
+- 0020: solicitudes de aporte + modo solicitado por inversor
 
 ---
 
@@ -250,6 +255,112 @@ interna y de bajo volumen — el riesgo es manejable.
 - `apps/admin/src/modules/inversores/actions.ts` — usar `pgsodium.crypto_aead_det_encrypt`
   al INSERT/UPDATE
 - Schema: nueva migration `0016_pgsodium_cbu_alias.sql`
+
+---
+
+## 14. Hardening del Supabase self-hosted
+
+Estos puntos NO son de la app SVI sino del `.env` de Supabase
+(`/root/supabase-svi/.env` en el VPS). Detectados al cruzar el `.env` real
+contra el código del portal del inversor (F5.6).
+
+### 14.1. SMTP — habilitar antes del primer inversor con portal
+
+**Estado actual** del `.env` del Supabase: `SMTP_HOST=`, `SMTP_USER=`,
+`SMTP_PASS=` vacíos.
+
+**Síntomas con SMTP vacío:**
+- Crear un usuario en Studio → no se envía email de bienvenida.
+- "Invite user" → falla o no llega nada.
+- "¿Olvidaste tu clave?" en `/portal/login` → no funciona.
+- Confirmación de email post-signup → imposible (queda pendiente para
+  siempre).
+
+**Workaround temporal** (válido para los primeros inversores):
+- Crear el auth user con `Add user` (no Invite) → auto-confirma.
+- Pasar la contraseña inicial por canal externo (WhatsApp/llamada).
+- El inversor puede cambiarla después manualmente desde Studio o vía
+  `supabase.auth.updateUser({ password })` en el portal (no implementado todavía).
+
+**Solución productiva** — configurar SMTP en
+`/root/supabase-svi/.env` y reiniciar el container `auth`:
+
+```env
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_USER=resend
+SMTP_PASS=<RESEND_API_KEY>           # mismo que apps/admin si lo activamos para emails transaccionales
+SMTP_SENDER_NAME=SVI
+SMTP_ADMIN_EMAIL=devwolf.contacto@gmail.com
+```
+
+```bash
+cd /root/supabase-svi
+docker compose up -d auth
+```
+
+Alternativas a Resend: Postmark, SendGrid, o un Gmail con app password.
+
+### 14.2. DISABLE_SIGNUP — cerrar el self-signup
+
+**Estado actual**: `DISABLE_SIGNUP=false` + `ENABLE_EMAIL_SIGNUP=true` →
+cualquiera con un POST a `/auth/v1/signup` puede crear cuenta de
+auth.users.
+
+**Por qué importa**: el portal del inversor sólo deja entrar a usuarios
+**vinculados** a un `inversores.portal_user_id`. Pero un atacante con
+la URL del Supabase puede crear cuentas vacías que ensucien
+`auth.users` y abran vector para fingerprint del sistema.
+
+**Cambio recomendado pre-producción**:
+
+```env
+DISABLE_SIGNUP=true
+```
+
+Los inversores y usuarios internos se crean SIEMPRE desde Studio
+(`Authentication → Users → Add user`). El operador es el que decide
+quién entra.
+
+```bash
+cd /root/supabase-svi
+docker compose up -d auth
+```
+
+### 14.3. ADDITIONAL_REDIRECT_URLS — sumar hosts de producción
+
+**Estado actual**:
+```env
+ADDITIONAL_REDIRECT_URLS=http://localhost:3000/**,http://localhost:3001/**
+```
+
+Sin los hosts de producción, los magic links / reset de password
+(cuando se active SMTP) van a redirigir mal y dar "URL no permitida".
+
+**Cambio**:
+```env
+ADDITIONAL_REDIRECT_URLS=http://localhost:3000/**,http://localhost:3001/**,https://svi.srv878399.hstgr.cloud/**,https://svi-erp.srv878399.hstgr.cloud/**
+```
+
+Cuando se compre el dominio definitivo, sumar los nuevos también.
+
+### 14.4. Postgres password en URL externa
+
+`POSTGRES_PASSWORD=2105.Lucifer98$` — el `$` debe escaparse como `%24`
+cuando se usa en `DATABASE_URL`:
+
+```env
+# CORRECTO
+DATABASE_URL=postgresql://postgres:2105.Lucifer98%24@supabase-svi.srv878399.hstgr.cloud:5432/postgres
+
+# INCORRECTO (rompe el parser de pg)
+DATABASE_URL=postgresql://postgres:2105.Lucifer98$@supabase-svi.srv878399.hstgr.cloud:5432/postgres
+```
+
+Adicional: hoy el puerto 5432 está expuesto al internet. Recomendable
+restringirlo por firewall a la IP del VPS o tunelizar por SSH cuando
+se necesite. La operación normal de SVI NO necesita conexión directa
+a Postgres — todo va por la API de Supabase.
 
 ---
 
