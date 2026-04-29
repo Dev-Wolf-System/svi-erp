@@ -23,6 +23,8 @@ import {
   getInversionById,
   getTasaHistorial,
 } from "@/modules/inversiones/queries";
+import { getLiquidacionesPorInversion } from "@/modules/liquidaciones-inversion/queries";
+import { LiquidacionesInversionPanel } from "./liquidaciones-panel";
 import {
   LABEL_ESTADO,
   LABEL_TIPO_INSTRUMENTO,
@@ -80,7 +82,10 @@ export default async function InversionDetailPage({ params }: PageProps) {
   const v = (await getInversionById(id)) as InversionDetail | null;
   if (!v) notFound();
 
-  const historial = await getTasaHistorial(id);
+  const [historial, liquidaciones] = await Promise.all([
+    getTasaHistorial(id),
+    getLiquidacionesPorInversion(id),
+  ]);
   const moneda = v.moneda as "ARS" | "USD";
 
   const meses = mesesEntre(v.fecha_inicio, new Date().toISOString().slice(0, 10));
@@ -281,6 +286,12 @@ export default async function InversionDetailPage({ params }: PageProps) {
           )}
         </CardContent>
       </Card>
+
+      <LiquidacionesInversionPanel
+        inversionId={v.id}
+        estado={v.estado}
+        liquidaciones={liquidaciones}
+      />
 
       {v.observaciones && (
         <Card>
