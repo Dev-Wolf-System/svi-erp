@@ -1,3 +1,4 @@
 export * from "./cn";
 export * from "./format";
 export * from "./auth";
+export * from "./calculos-fci";

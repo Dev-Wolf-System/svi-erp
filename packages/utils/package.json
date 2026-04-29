@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./format": "./src/format/index.ts",
     "./auth": "./src/auth/index.ts",
-    "./cn": "./src/cn.ts"
+    "./cn": "./src/cn.ts",
+    "./calculos-fci": "./src/calculos-fci/index.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
