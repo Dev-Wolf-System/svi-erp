@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   renderContratoFci,
+  computeContratoFciHash,
   type ContratoFciData,
 } from "@repo/pdf/contrato-fci";
 import { createClient } from "@/lib/supabase/server";
@@ -15,15 +16,25 @@ type ActionResult<T = unknown> =
 const CONTRATOS_BUCKET = "contratos-fci";
 
 /**
- * Renderiza el contrato FCI, lo sube al bucket privado `contratos-fci` con
- * path versionado `{empresa}/{inversion}/{numero}-vN.pdf` y persiste
- * `inversiones.contrato_url`, `contrato_hash`, `contrato_version`.
+ * Renderiza el contrato FCI.
+ *
+ * Decide automáticamente entre:
+ *   - **COPIA**: si los datos legales no cambiaron desde el último ORIGINAL
+ *     (mismo hash). Sube con sufijo `-copia-<ts>` y NO toca la DB.
+ *   - **ORIGINAL nueva versión**: si los datos cambiaron o no hay hash previo.
+ *     Sube como `-vN.pdf` y persiste contrato_url/hash/version.
  *
  * Hash + QR apuntan a `/vi/<numero_contrato>` (página pública).
  */
 export async function generarContratoFciPdf(
   inversionId: string,
-): Promise<ActionResult<{ signed_url: string }>> {
+): Promise<
+  ActionResult<{
+    signed_url: string;
+    tipo: "original" | "copia";
+    version: number;
+  }>
+> {
   const supabase = await createClient();
   const { data: v, error } = await supabase
     .from("inversiones")
@@ -33,6 +44,7 @@ export async function generarContratoFciPdf(
       capital_inicial, moneda, tasa_mensual,
       tipo_instrumento, estado_regulatorio, firma_metodo,
       observaciones,
+      contrato_url, contrato_hash, contrato_version,
       inversor:inversores!inversiones_inversor_id_fkey!inner (
         nombre, dni, cuit, email, telefono, banco_nombre, cbu
       ),
@@ -123,24 +135,33 @@ export async function generarContratoFciPdf(
     },
   };
 
-  const service = createServiceClient();
-  const versionExistente = await service.storage
-    .from(CONTRATOS_BUCKET)
-    .list(`${v.empresa_id}/${inversionId}`, { limit: 100 });
-  const version = (versionExistente.data?.length ?? 0) + 1;
+  // Decisión copia vs nueva versión por hash canónico
+  const hashActual = computeContratoFciHash(data);
+  const hashPersistido = (v.contrato_hash as string | null) ?? null;
+  const versionPersistida = (v.contrato_version as number | null) ?? 0;
+  const esCopia = hashPersistido != null && hashPersistido === hashActual;
+
+  const versionAUsar = esCopia ? versionPersistida : versionPersistida + 1;
+  const tipoEjemplar = esCopia ? "COPIA" : "ORIGINAL";
+  const ahora = new Date();
+  const ahoraIso = ahora.toISOString();
 
   const verifyBaseUrl =
     process.env.NEXT_PUBLIC_ADMIN_URL ?? "http://localhost:3001";
 
+  const service = createServiceClient();
+
   let buffer: Buffer;
-  let hash: string | null;
+  let hashFinal: string | null;
   try {
     const out = await renderContratoFci(data, {
       verifyBaseUrl,
-      contratoVersion: version,
+      contratoVersion: versionAUsar,
+      ejemplar: tipoEjemplar,
+      ejemplarFecha: ahoraIso,
     });
     buffer = out.buffer;
-    hash = out.hash;
+    hashFinal = out.hash;
   } catch (err) {
     return {
       ok: false,
@@ -148,7 +169,10 @@ export async function generarContratoFciPdf(
     };
   }
 
-  const filePath = `${v.empresa_id}/${inversionId}/${v.numero_contrato}-v${version}.pdf`;
+  const baseDir = `${v.empresa_id}/${inversionId}`;
+  const filePath = esCopia
+    ? `${baseDir}/${v.numero_contrato}-v${versionAUsar}-copia-${ahora.getTime()}.pdf`
+    : `${baseDir}/${v.numero_contrato}-v${versionAUsar}.pdf`;
 
   const { error: upErr } = await service.storage
     .from(CONTRATOS_BUCKET)
@@ -175,18 +199,27 @@ export async function generarContratoFciPdf(
     return { ok: false, error: `Signed URL: ${signErr?.message ?? "fallida"}` };
   }
 
-  await supabase
-    .from("inversiones")
-    .update({
-      contrato_url: filePath,
-      contrato_hash: hash,
-      contrato_version: version,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", inversionId);
+  if (!esCopia) {
+    await supabase
+      .from("inversiones")
+      .update({
+        contrato_url: filePath,
+        contrato_hash: hashFinal,
+        contrato_version: versionAUsar,
+        updated_at: ahoraIso,
+      })
+      .eq("id", inversionId);
+  }
 
   revalidatePath(`/inversiones/${inversionId}`);
-  return { ok: true, data: { signed_url: signed.signedUrl } };
+  return {
+    ok: true,
+    data: {
+      signed_url: signed.signedUrl,
+      tipo: esCopia ? "copia" : "original",
+      version: versionAUsar,
+    },
+  };
 }
 
 export async function getSignedContratoFciUrl(

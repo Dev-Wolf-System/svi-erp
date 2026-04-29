@@ -181,6 +181,40 @@ const styles = StyleSheet.create({
   },
   footerLeft: { flexDirection: "column", maxWidth: 160 },
   footerRight: { flexDirection: "column", alignItems: "flex-end" },
+
+  ejemplarBadge: {
+    flexDirection: "column",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderRadius: 4,
+    marginBottom: 14,
+  },
+  ejemplarBadgeOriginal: {
+    borderColor: SVI_COLORS.gold,
+    backgroundColor: SVI_COLORS.goldSoft,
+  },
+  ejemplarBadgeCopia: {
+    borderColor: "#9A6E00",
+    backgroundColor: "#FFF7E0",
+  },
+  ejemplarText: {
+    fontSize: SVI_SIZES.sm,
+    fontFamily: SVI_FONTS.display,
+    letterSpacing: 2,
+  },
+  ejemplarTextOriginal: { color: SVI_COLORS.gold },
+  ejemplarTextCopia: { color: "#9A6E00" },
+  ejemplarSubtext: {
+    fontSize: 7,
+    color: SVI_COLORS.textMuted,
+    fontFamily: SVI_FONTS.body,
+    marginTop: 1,
+    letterSpacing: 0.5,
+  },
+
   footerPageNum: {
     fontSize: SVI_SIZES.xs,
     color: SVI_COLORS.gold,
@@ -277,6 +311,48 @@ export function SignatureRow({ children }: { children: ReactNode }) {
   return <View style={styles.signatureArea}>{children}</View>;
 }
 
+export type TipoEjemplar = "ORIGINAL" | "COPIA";
+
+export interface EjemplarBadgeProps {
+  tipo: TipoEjemplar;
+  /** Fecha de emisión del ejemplar (ISO o YYYY-MM-DD). Sólo se imprime para COPIA. */
+  fechaEmision?: string;
+}
+
+/**
+ * Sello visual en el documento que indica si es ORIGINAL o COPIA.
+ * Pensado para colocarse después del header y antes del título — alineado
+ * a la derecha. Inocuo para el cliente, importante para auditoría interna:
+ *
+ *   - ORIGINAL: dorado discreto, indica documento legal vigente.
+ *   - COPIA: ambar suave + fecha de reemisión.
+ */
+export function EjemplarBadge({ tipo, fechaEmision }: EjemplarBadgeProps) {
+  const isOriginal = tipo === "ORIGINAL";
+  return (
+    <View
+      style={[
+        styles.ejemplarBadge,
+        isOriginal ? styles.ejemplarBadgeOriginal : styles.ejemplarBadgeCopia,
+      ]}
+    >
+      <Text
+        style={[
+          styles.ejemplarText,
+          isOriginal ? styles.ejemplarTextOriginal : styles.ejemplarTextCopia,
+        ]}
+      >
+        {tipo}
+      </Text>
+      {!isOriginal && fechaEmision ? (
+        <Text style={styles.ejemplarSubtext}>
+          Reimpresa: {fechaEmision.slice(0, 10)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 export interface SviFooterProps {
   texto?: string;
 }
@@ -305,12 +381,14 @@ export interface SviIntegrityFooterProps {
   contratoVersion: number;
   qrDataUrl: string;
   verifyUrl: string;
+  /** "ORIGINAL" o "COPIA" — se imprime al lado de la versión en cada página. */
+  ejemplar?: TipoEjemplar;
 }
 
 /**
  * Footer fijo con sello de integridad: QR a la URL pública de verificación,
- * hash truncado y completo, número de operación y versión del documento.
- * Se imprime en cada página (fixed).
+ * hash truncado y completo, número de operación, versión del documento y
+ * marca ejemplar (ORIGINAL/COPIA). Se imprime en cada página (fixed).
  */
 export function SviIntegrityFooter(props: SviIntegrityFooterProps) {
   return (
@@ -318,6 +396,7 @@ export function SviIntegrityFooter(props: SviIntegrityFooterProps) {
       <View style={styles.footerLeft}>
         <Text style={styles.footerText}>
           {props.numeroOperacion} · v{props.contratoVersion}
+          {props.ejemplar ? ` · ${props.ejemplar}` : ""}
         </Text>
         <Text style={styles.footerVerify}>Verificar: {props.verifyUrl}</Text>
       </View>

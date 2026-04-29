@@ -9,7 +9,11 @@ import {
   type FacturaPayload,
 } from "@repo/integrations/afip";
 import { createPreference } from "@repo/integrations/mercadopago";
-import { renderContratoVenta, type ContratoVentaData } from "@repo/pdf/contrato-venta";
+import {
+  renderContratoVenta,
+  computeContratoHash,
+  type ContratoVentaData,
+} from "@repo/pdf/contrato-venta";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -217,14 +221,32 @@ export async function crearPreferenciaMP(
 }
 
 /**
- * Genera el contrato PDF, lo sube al bucket privado `contratos-pdf` con path
- * versionado e inmutable, y persiste `contrato_url` (signed URL temporal).
+ * Genera el contrato PDF de venta.
+ *
+ * Decide automáticamente entre dos comportamientos según el hash canónico:
+ *
+ *   1. **COPIA** — si los datos legales del contrato no cambiaron desde
+ *      el último ORIGINAL emitido (mismo hash). Sube al bucket con sufijo
+ *      `-copia-<timestamp>`, marca el PDF con sello "COPIA · fecha", NO
+ *      actualiza `ventas.contrato_url/hash/version`. El original persistido
+ *      en DB sigue siendo la fuente de verdad.
+ *
+ *   2. **ORIGINAL nueva versión** — si los datos cambiaron (hash distinto)
+ *      o no hay hash previo. Sube como `-vN.pdf`, marca "ORIGINAL", actualiza
+ *      `contrato_url/hash/version` en DB. El original anterior queda en el
+ *      bucket como histórico (path inmutable).
  *
  * Requiere bucket `contratos-pdf` privado en Supabase Storage.
  */
 export async function generarContratoVentaPdf(
   ventaId: string,
-): Promise<ActionResult<{ signed_url: string }>> {
+): Promise<
+  ActionResult<{
+    signed_url: string;
+    tipo: "original" | "copia";
+    version: number;
+  }>
+> {
   const supabase = await createClient();
   const { data: v, error } = await supabase
     .from("ventas")
@@ -233,6 +255,7 @@ export async function generarContratoVentaPdf(
       id, empresa_id, numero_operacion, created_at,
       precio_venta, descuento, precio_final, moneda, tipo_pago, notas,
       valor_parte, banco_id, legajo_banco, monto_financiado, cuotas, tasa_banco,
+      contrato_url, contrato_hash, contrato_version,
       cliente:clientes!ventas_cliente_id_fkey!inner ( tipo, nombre, apellido, razon_social, cuit, dni, direccion, telefono, email ),
       vehiculo:vehiculos!ventas_vehiculo_id_fkey!inner ( marca, modelo, anio, patente, kilometraje, color ),
       vehiculo_parte:vehiculos!ventas_vehiculo_parte_id_fkey ( marca, modelo, anio, patente ),
@@ -365,24 +388,35 @@ export async function generarContratoVentaPdf(
         : null,
   };
 
-  const service = createServiceClient();
-  const versionExistente = await service.storage
-    .from(CONTRATOS_BUCKET)
-    .list(`${v.empresa_id}/${ventaId}`, { limit: 100 });
-  const version = (versionExistente.data?.length ?? 0) + 1;
+  // Decisión copia vs nueva versión por hash canónico
+  const hashActual = computeContratoHash(data);
+  const hashPersistido = (v.contrato_hash as string | null) ?? null;
+  const versionPersistida = (v.contrato_version as number | null) ?? 0;
+  const esCopia = hashPersistido != null && hashPersistido === hashActual;
+
+  const versionAUsar = esCopia
+    ? versionPersistida
+    : versionPersistida + 1;
+  const tipoEjemplar = esCopia ? "COPIA" : "ORIGINAL";
+  const ahora = new Date();
+  const ahoraIso = ahora.toISOString();
 
   const verifyBaseUrl =
     process.env.NEXT_PUBLIC_ADMIN_URL ?? "http://localhost:3001";
 
+  const service = createServiceClient();
+
   let buffer: Buffer;
-  let hash: string | null;
+  let hashFinal: string | null;
   try {
     const out = await renderContratoVenta(data, {
       verifyBaseUrl,
-      contratoVersion: version,
+      contratoVersion: versionAUsar,
+      ejemplar: tipoEjemplar,
+      ejemplarFecha: ahoraIso,
     });
     buffer = out.buffer;
-    hash = out.hash;
+    hashFinal = out.hash;
   } catch (err) {
     return {
       ok: false,
@@ -390,7 +424,10 @@ export async function generarContratoVentaPdf(
     };
   }
 
-  const filePath = `${v.empresa_id}/${ventaId}/${v.numero_operacion}-v${version}.pdf`;
+  const baseDir = `${v.empresa_id}/${ventaId}`;
+  const filePath = esCopia
+    ? `${baseDir}/${v.numero_operacion}-v${versionAUsar}-copia-${ahora.getTime()}.pdf`
+    : `${baseDir}/${v.numero_operacion}-v${versionAUsar}.pdf`;
 
   const { error: upErr } = await service.storage
     .from(CONTRATOS_BUCKET)
@@ -417,18 +454,29 @@ export async function generarContratoVentaPdf(
     return { ok: false, error: `Signed URL: ${signErr?.message ?? "fallida"}` };
   }
 
-  await supabase
-    .from("ventas")
-    .update({
-      contrato_url: filePath,
-      contrato_hash: hash,
-      contrato_version: version,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", ventaId);
+  // Sólo el ORIGINAL toca la DB. La COPIA queda archivada en el bucket
+  // pero no es la fuente de verdad — el original persistido sigue vigente.
+  if (!esCopia) {
+    await supabase
+      .from("ventas")
+      .update({
+        contrato_url: filePath,
+        contrato_hash: hashFinal,
+        contrato_version: versionAUsar,
+        updated_at: ahoraIso,
+      })
+      .eq("id", ventaId);
+  }
 
   revalidatePath(`/ventas/${ventaId}`);
-  return { ok: true, data: { signed_url: signed.signedUrl } };
+  return {
+    ok: true,
+    data: {
+      signed_url: signed.signedUrl,
+      tipo: esCopia ? "copia" : "original",
+      version: versionAUsar,
+    },
+  };
 }
 
 /**

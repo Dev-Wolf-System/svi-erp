@@ -1,6 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getSviLogoCircular } from "../assets";
 import { generateQrDataUrl } from "../qr";
+import type { TipoEjemplar } from "../components";
 import { shortHash as shortHashFn } from "../contrato-venta/canonical";
 import { computeContratoFciHash } from "./canonical";
 import { contratoFciSchema, type ContratoFciData } from "./schema";
@@ -13,10 +14,14 @@ export interface RenderContratoFciOptions {
    * `<base>/vi/<numero_contrato>`. Sin base, no se imprime sello.
    */
   verifyBaseUrl?: string;
-  /** Versión del documento (cuántas veces se regeneró). Default 1. */
+  /** Versión del documento (cuántas veces cambió el contenido legal). Default 1. */
   contratoVersion?: number;
   /** Si true, incluye el logo SVI en el header. Default true. */
   includeLogo?: boolean;
+  /** ORIGINAL (datos vigentes) o COPIA (reimpresión sin cambios). Default ORIGINAL. */
+  ejemplar?: TipoEjemplar;
+  /** Fecha ISO de emisión del ejemplar — sólo se imprime si tipo=COPIA. */
+  ejemplarFecha?: string;
 }
 
 /**
@@ -29,7 +34,13 @@ export async function renderContratoFci(
 ): Promise<{ buffer: Buffer; hash: string | null }> {
   const validated = contratoFciSchema.parse(data);
 
-  const { verifyBaseUrl, contratoVersion = 1, includeLogo = true } = options;
+  const {
+    verifyBaseUrl,
+    contratoVersion = 1,
+    includeLogo = true,
+    ejemplar = "ORIGINAL",
+    ejemplarFecha = new Date().toISOString(),
+  } = options;
 
   const logoDataUrl = includeLogo ? await getSviLogoCircular() : null;
 
@@ -54,6 +65,7 @@ export async function renderContratoFci(
       data={validated}
       logoDataUrl={logoDataUrl}
       integrity={integrity}
+      ejemplar={{ tipo: ejemplar, fechaEmision: ejemplarFecha }}
     />,
   );
 

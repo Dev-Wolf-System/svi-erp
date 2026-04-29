@@ -2,6 +2,7 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { formatCurrency, formatDateLong } from "@repo/utils/format";
 import {
   DataRow,
+  EjemplarBadge,
   Highlight,
   LegalParagraph,
   SectionTitle,
@@ -10,6 +11,7 @@ import {
   SviFooter,
   SviHeader,
   SviIntegrityFooter,
+  type TipoEjemplar,
 } from "../components";
 import { SVI_COLORS, SVI_FONTS, SVI_SIZES } from "../theme";
 import type { ContratoVentaData } from "./schema";
@@ -20,6 +22,12 @@ export interface ContratoVentaIntegrity {
   qrDataUrl: string;
   verifyUrl: string;
   contratoVersion: number;
+}
+
+export interface EjemplarInfo {
+  tipo: TipoEjemplar;
+  /** ISO o YYYY-MM-DD. Sólo se imprime para COPIA. */
+  fechaEmision: string;
 }
 
 const pageStyles = StyleSheet.create({
@@ -71,12 +79,15 @@ export interface ContratoVentaDocumentProps {
   logoDataUrl?: string | null;
   /** Sello de integridad (hash + QR). Si se omite, footer simple legacy. */
   integrity?: ContratoVentaIntegrity | null;
+  /** Ejemplar — ORIGINAL o COPIA. Si se omite, no se imprime el badge. */
+  ejemplar?: EjemplarInfo | null;
 }
 
 export function ContratoVentaDocument({
   data,
   logoDataUrl,
   integrity,
+  ejemplar,
 }: ContratoVentaDocumentProps) {
   const { empresa, sucursal, venta, vehiculo, cliente, parte_pago, financiacion } = data;
   const moneda = venta.moneda;
@@ -97,6 +108,13 @@ export function ContratoVentaDocument({
           sucursalDireccion={sucursal.direccion}
           logoDataUrl={logoDataUrl}
         />
+
+        {ejemplar ? (
+          <EjemplarBadge
+            tipo={ejemplar.tipo}
+            fechaEmision={ejemplar.fechaEmision}
+          />
+        ) : null}
 
         <View style={pageStyles.metaRow}>
           <Text style={pageStyles.metaNumero}>OPERACIÓN N° {venta.numero_operacion}</Text>
@@ -241,6 +259,7 @@ export function ContratoVentaDocument({
             contratoVersion={integrity.contratoVersion}
             qrDataUrl={integrity.qrDataUrl}
             verifyUrl={integrity.verifyUrl}
+            ejemplar={ejemplar?.tipo}
           />
         ) : (
           <SviFooter />

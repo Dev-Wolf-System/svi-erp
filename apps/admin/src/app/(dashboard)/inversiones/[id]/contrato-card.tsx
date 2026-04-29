@@ -38,7 +38,13 @@ export function ContratoFciCard({
         toast.error(res.error);
         return;
       }
-      toast.success("Contrato generado");
+      if (res.data.tipo === "copia") {
+        toast.success(
+          `Copia emitida (los datos legales no cambiaron desde v${res.data.version})`,
+        );
+      } else {
+        toast.success(`Original v${res.data.version} generado`);
+      }
       window.open(res.data.signed_url, "_blank");
     });
   }
@@ -94,7 +100,7 @@ export function ContratoFciCard({
             ) : (
               <FileSignature className="h-4 w-4" />
             )}
-            {contratoUrl ? "Generar nueva versión" : "Generar contrato"}
+            {contratoUrl ? "Imprimir copia / nueva versión" : "Generar contrato"}
           </Button>
         </div>
       </CardContent>

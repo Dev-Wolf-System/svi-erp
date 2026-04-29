@@ -1,6 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getSviLogoCircular } from "../assets";
 import { generateQrDataUrl } from "../qr";
+import type { TipoEjemplar } from "../components";
 import {
   buildVerifyUrl,
   computeContratoHash,
@@ -17,10 +18,17 @@ export interface RenderContratoOptions {
    * sello de integridad (footer legacy) — útil para previews internas.
    */
   verifyBaseUrl?: string;
-  /** Versión del documento (cuántas veces se regeneró). Default 1. */
+  /** Versión del documento (cuántas veces cambió el contenido legal). Default 1. */
   contratoVersion?: number;
   /** Si true, incluye el logo SVI en el header. Default true. */
   includeLogo?: boolean;
+  /**
+   * Ejemplar a imprimir: ORIGINAL (datos vigentes) o COPIA (reimpresión
+   * de un original, sin cambios legales). Default ORIGINAL.
+   */
+  ejemplar?: TipoEjemplar;
+  /** Fecha ISO de emisión del ejemplar — sólo se imprime si tipo=COPIA. */
+  ejemplarFecha?: string;
 }
 
 /**
@@ -40,7 +48,13 @@ export async function renderContratoVenta(
 ): Promise<{ buffer: Buffer; hash: string | null }> {
   const validated = contratoVentaSchema.parse(data);
 
-  const { verifyBaseUrl, contratoVersion = 1, includeLogo = true } = options;
+  const {
+    verifyBaseUrl,
+    contratoVersion = 1,
+    includeLogo = true,
+    ejemplar = "ORIGINAL",
+    ejemplarFecha = new Date().toISOString(),
+  } = options;
 
   const logoDataUrl = includeLogo ? await getSviLogoCircular() : null;
 
@@ -65,6 +79,7 @@ export async function renderContratoVenta(
       data={validated}
       logoDataUrl={logoDataUrl}
       integrity={integrity}
+      ejemplar={{ tipo: ejemplar, fechaEmision: ejemplarFecha }}
     />,
   );
 

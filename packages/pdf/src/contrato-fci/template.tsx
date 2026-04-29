@@ -2,6 +2,7 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { formatCurrency, formatDateLong } from "@repo/utils/format";
 import {
   DataRow,
+  EjemplarBadge,
   Highlight,
   LegalParagraph,
   SectionTitle,
@@ -10,6 +11,7 @@ import {
   SviFooter,
   SviHeader,
   SviIntegrityFooter,
+  type TipoEjemplar,
 } from "../components";
 import { SVI_COLORS, SVI_FONTS, SVI_SIZES } from "../theme";
 import type { ContratoFciData } from "./schema";
@@ -20,6 +22,11 @@ export interface ContratoFciIntegrity {
   qrDataUrl: string;
   verifyUrl: string;
   contratoVersion: number;
+}
+
+export interface EjemplarFciInfo {
+  tipo: TipoEjemplar;
+  fechaEmision: string;
 }
 
 const pageStyles = StyleSheet.create({
@@ -89,12 +96,14 @@ export interface ContratoFciDocumentProps {
   data: ContratoFciData;
   logoDataUrl?: string | null;
   integrity?: ContratoFciIntegrity | null;
+  ejemplar?: EjemplarFciInfo | null;
 }
 
 export function ContratoFciDocument({
   data,
   logoDataUrl,
   integrity,
+  ejemplar,
 }: ContratoFciDocumentProps) {
   const { empresa, sucursal, inversion, inversor } = data;
   const moneda = inversion.moneda;
@@ -116,6 +125,13 @@ export function ContratoFciDocument({
           sucursalDireccion={sucursal.direccion}
           logoDataUrl={logoDataUrl}
         />
+
+        {ejemplar ? (
+          <EjemplarBadge
+            tipo={ejemplar.tipo}
+            fechaEmision={ejemplar.fechaEmision}
+          />
+        ) : null}
 
         <View style={pageStyles.metaRow}>
           <Text style={pageStyles.metaNumero}>
@@ -251,6 +267,7 @@ export function ContratoFciDocument({
             contratoVersion={integrity.contratoVersion}
             qrDataUrl={integrity.qrDataUrl}
             verifyUrl={integrity.verifyUrl}
+            ejemplar={ejemplar?.tipo}
           />
         ) : (
           <SviFooter />
