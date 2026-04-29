@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { Button, Field, Input } from "@repo/ui";
+import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm({ audience }: { audience: "cliente" | "inversor" }) {
   const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get("next");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,17 +21,24 @@ export function LoginForm({ audience }: { audience: "cliente" | "inversor" }) {
     setLoading(true);
     setError(null);
 
-    // Stub: la integración real con Supabase Auth se cablea cuando el proyecto Supabase esté creado.
-    // Por ahora simulamos un login para demostración.
-    await new Promise((r) => setTimeout(r, 600));
-
-    if (!email.includes("@") || password.length < 6) {
-      setError("Verificá los datos ingresados.");
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInError) {
+      setError(
+        signInError.message.includes("Invalid login")
+          ? "Email o contraseña incorrectos."
+          : signInError.message,
+      );
       setLoading(false);
       return;
     }
 
-    router.push(`/portal/${audience}`);
+    const destino = next ?? `/portal/${audience}`;
+    router.push(destino);
+    router.refresh();
   }
 
   return (
@@ -67,20 +77,32 @@ export function LoginForm({ audience }: { audience: "cliente" | "inversor" }) {
       </Field>
 
       {error && (
-        <div role="alert" className="rounded-lg border border-svi-error/40 bg-svi-error/10 px-3 py-2 text-sm text-svi-error">
+        <div
+          role="alert"
+          className="rounded-lg border border-svi-error/40 bg-svi-error/10 px-3 py-2 text-sm text-svi-error"
+        >
           {error}
         </div>
       )}
 
       <Button type="submit" disabled={loading} className="w-full">
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Ingresar <ArrowRight className="h-4 w-4" /></>}
+        {loading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <>
+            Ingresar <ArrowRight className="h-4 w-4" />
+          </>
+        )}
       </Button>
 
       <div className="flex items-center justify-between text-sm">
         <Link href="/portal" className="text-svi-muted-2 hover:text-svi-gold">
           Cambiar tipo de acceso
         </Link>
-        <a href="mailto:soporte@svi.com.ar" className="text-svi-gold hover:underline">
+        <a
+          href="mailto:soporte@svi.com.ar"
+          className="text-svi-gold hover:underline"
+        >
           ¿Olvidaste tu clave?
         </a>
       </div>
