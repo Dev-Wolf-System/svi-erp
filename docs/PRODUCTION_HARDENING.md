@@ -206,6 +206,7 @@ Migrations actuales (al 2026-04-29):
 - 0018: liquidaciones recibo + modo retirar/reinvertir
 - 0019: aportes adicionales del inversor
 - 0020: solicitudes de aporte + modo solicitado por inversor
+- 0021: agenda (recursos + disponibilidad + bloqueos + turnos con anti-overlapping)
 
 ---
 
