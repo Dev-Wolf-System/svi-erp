@@ -4,9 +4,13 @@
 > para el agente conversacional sobre WhatsApp y el módulo de Agenda que el
 > agente consume.
 >
-> Implementación distribuida en fases: F7 (Agenda), F8 (Agente read-only),
-> F8.5 (Agente write inversor/cliente), F8.6 (Agente owner/secretaria),
-> F9 (workflows proactivos N8N).
+> Estado al 2026-04-30:
+> - **F7 Agenda — base completa ✅** (migration 0021 + módulo + UI calendario semanal)
+> - **F7.5 Sync Google Calendar — ⚪ pendiente** (workflow N8N consume `pg_notify('svi_agenda')`)
+> - **F8 Agente IA read-only — 🔜 próximo**
+> - **F8.5 Agente write — pendiente**
+> - **F8.6 Agente owner/secretaria — pendiente**
+> - **F9 Workflows proactivos — pendiente**
 
 ---
 
@@ -137,7 +141,12 @@ CREATE UNIQUE INDEX idx_usuarios_telefono_verificado
 
 ---
 
-## 6. Módulo Agenda — schema mínimo (F7)
+## 6. Módulo Agenda — schema implementado (F7 ✅)
+
+> ✅ Implementado en migration `supabase/migrations/0021_agenda.sql` y módulo
+> `apps/admin/src/modules/agenda/`. El SQL real puede tener campos adicionales
+> (`color`, `notas`, `external_ref`, audit de cancelación). Esto es la versión
+> arquitectónica resumida.
 
 ```sql
 -- 0021_agenda.sql
@@ -287,21 +296,44 @@ Flag `AGENT_MODEL` permite subir a Opus 4.7 en flujos críticos.
 
 ---
 
-## 9. Preguntas pendientes de alineación
+## 9. Definiciones — estado de alineación
 
-> Marcar como resuelto cuando el owner confirme.
+### Resueltas
 
-1. **Agenda multi-recurso desde día 1?** Schema ya lo soporta. Owner confirma
-   modelar también asesor de inversiones / vendedores como recursos? **(pendiente)**
-2. **Slots:** duración estándar 30 min y horario L-V 9-18 como default?
-   **(pendiente)**
-3. **Sync Google Calendar del owner:** F7.5 (sub-fase) o lo posponemos? **(pendiente)**
-4. **Secretaria:** usuario interno con login propio en `apps/admin`, o solo
+1. **Agenda multi-recurso desde día 1** — ✅ confirmado. Migration 0021
+   incluye los 4 tipos: `owner`, `asesor`, `vendedor`, `sala`. La UI permite
+   crear N recursos con color e icono propio.
+2. **Slots y horarios default** — ✅ confirmado. Slot default 30 min, formulario
+   de disponibilidad pre-rellena L-V 9-18 (modificable por recurso). Slots
+   permitidos: 15/20/30/45/60/90/120 min (CHECK constraint en DB).
+3. **Sync Google Calendar del owner** — ✅ pospuesto a **F7.5** (sub-fase
+   posterior a F8). El trigger `pg_notify('svi_agenda', ...)` ya está activo
+   y emite el payload listo para que un workflow N8N lo consuma.
+
+### Pendientes (afectan F8/F8.5/F8.6)
+
+4. **Secretaria:** ¿usuario interno con login propio en `apps/admin`, o solo
    opera por WA con número distinto? **(pendiente)**
+
+   *Recomendación:* usuario interno con login propio + número WA registrado.
+   El login admin sirve para gestión visual de la agenda y altas masivas;
+   el agente WA es para operación rápida sobre la marcha.
+
 5. **PIN de sesión WA para roles internos:** ¿OK con 6 dígitos / 8h, o más
    fuerte? **(pendiente)**
+
+   *Recomendación:* PIN de 6 dígitos válido 8h por sesión (~1 PIN por jornada
+   laboral). Generación desde admin app. Reduce friccón vs TOTP/2FA real
+   pero impide que un número WA filtrado actúe sin desafío explícito.
+
 6. **Modelo Claude por defecto:** Sonnet 4.6 (recomendado) o Opus 4.7 desde
    día 1? **(pendiente)**
+
+   *Recomendación:* arrancar con **Claude Sonnet 4.6** (relación calidad/costo
+   óptima para tool use). Flag `AGENT_MODEL` en el package permite escalar a
+   Opus 4.7 puntualmente para roles owner o flujos de alto valor.
+
+Las 3 pendientes se pueden definir cuando arranquemos F8 — no bloquean F7.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > Guía operativa para deployar SVI en el VPS Hostinger
 > (`srv878399.hstgr.cloud`) donde ya corren Supabase + N8N + Evolution API
-> + Traefik. Vigente al **2026-04-30** (post F5.7 + panel Evolution).
+> + Traefik. Vigente al **2026-04-30** (post F5.7 + panel Evolution + F7 Agenda).
 
 ---
 
@@ -146,7 +146,10 @@ la DB de producción.
 SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
 
 -- Tablas que tienen que existir (al 2026-04-30):
---   agenda_*           ← F7 (todavía no, ignorar)
+--   agenda_recursos       ← F7 ✅
+--   agenda_disponibilidad ← F7 ✅
+--   agenda_bloqueos       ← F7 ✅
+--   agenda_turnos         ← F7 ✅
 --   audit_log
 --   bancos
 --   caja_*             ← F6 (todavía no, ignorar)
@@ -377,6 +380,26 @@ Si llega el WA, **activar el toggle** del workflow → corre el día 1 a las 07:
 
 Crear una venta de prueba → "Generar contrato" → bajar el PDF → debería tener
 QR + hash en footer + signed URL válida 1h.
+
+### 5.6. Validar Agenda (F7)
+
+```
+1. /agenda/recursos/nuevo → crear recurso "Owner — Nahuel" tipo owner
+2. Detalle del recurso → agregar disponibilidad L-V 09:00-18:00 slot 30min
+3. /agenda/turnos/nuevo → crear turno (persona externa OK para test)
+4. /agenda → debe aparecer el turno con color del recurso, badge "Solicitado"
+5. Click en el turno → "Confirmar" → estado pasa a verde
+6. Volver al calendario → confirmar overlap-prevention: intentar crear otro
+   turno en el mismo horario y recurso → debe rechazar con mensaje claro
+```
+
+Verificar en SQL que el trigger `pg_notify('svi_agenda', ...)` se está
+disparando (lo va a usar N8N en F7.5 para sync Google Calendar):
+
+```sql
+-- Listen en una conexión paralela mientras creás un turno
+LISTEN svi_agenda;
+```
 
 ---
 

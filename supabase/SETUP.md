@@ -482,3 +482,85 @@ El cálculo de intereses con redondeo half-even vive en `@repo/utils/calculos-fc
 verdad para el mismo redondeo. El cron pg_notify de la migration 0011 sigue
 disponible como tracer de auditoría (emite `svi_jobs` el día 1) pero NO ejecuta
 el cálculo.
+
+---
+
+## 18. Agenda (F7) — schema + anti-overlapping + pg_notify
+
+### Migration
+
+`supabase/migrations/0021_agenda.sql` agrega la extensión `btree_gist` (necesaria
+para el `EXCLUDE` con `uuid + tstzrange`) y crea:
+
+| Tabla | Para qué |
+|---|---|
+| `agenda_recursos` | Owner / asesor / vendedor / sala con tipo, color y vínculo opcional a `usuarios` |
+| `agenda_disponibilidad` | Franjas semanales recurrentes con `slot_minutos` (15/20/30/45/60/90/120) |
+| `agenda_bloqueos` | Excepciones puntuales (vacaciones, feriados) |
+| `agenda_turnos` | Instancias concretas con persona interna o externa |
+
+### Anti-overlapping garantizado por DB
+
+```sql
+CONSTRAINT no_overlap_turnos_vivos
+  EXCLUDE USING gist (
+    recurso_id WITH =,
+    tstzrange(inicio, fin, '[)') WITH &&
+  ) WHERE (estado IN ('solicitado', 'confirmado'))
+```
+
+Si la app intenta crear un turno que pisa otro vivo en el mismo recurso,
+PostgreSQL responde con código `23P01` (`exclusion_violation`). El módulo
+`apps/admin/src/modules/agenda/actions.ts` lo mapea a un mensaje claro al
+usuario: *"El recurso ya tiene un turno solicitado/confirmado en ese horario."*
+
+Cancelados / cumplidos / no_show NO bloquean (solo `solicitado` y `confirmado`).
+
+### Trigger pg_notify
+
+```sql
+PERFORM pg_notify('svi_agenda', json_build_object(...));
+```
+
+Dispara en `INSERT` y en `UPDATE` de columnas `estado`, `inicio`, `fin`,
+`modalidad`. El payload incluye `op`, `turno_id`, `empresa_id`, `recurso_id`,
+`estado`, `inicio`, `fin`, `persona_tipo`, `persona_id`, `changed_at`.
+
+**Consumido por:** workflow N8N `agenda-google-sync` (a entregar en F7.5)
+para sincronizar con el Google Calendar del owner. También va a alimentar
+los recordatorios T-1d / T-1h del agente WA (F9).
+
+### Test rápido del trigger
+
+```sql
+-- Conexión 1
+LISTEN svi_agenda;
+-- (esperar)
+
+-- Conexión 2
+INSERT INTO agenda_turnos (
+  empresa_id, recurso_id, persona_tipo, externo_nombre,
+  inicio, fin, motivo, creado_por
+) VALUES (
+  '<EMPRESA_ID>', '<RECURSO_ID>', 'externo', 'Test',
+  NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day 30 minutes',
+  'test del trigger', 'sistema'
+);
+
+-- Conexión 1 debería recibir notification con el payload JSON.
+```
+
+### RLS
+
+Las cuatro tablas están bajo RLS por `empresa_id` (mismo patrón del resto):
+- `agenda_recursos` y `agenda_turnos` filtran por `auth.empresa_id()` directo.
+- `agenda_disponibilidad` y `agenda_bloqueos` heredan vía sub-select sobre
+  `agenda_recursos` (las dos tablas no tienen `empresa_id` propio, solo
+  `recurso_id`).
+
+### Lo que falta dentro de F7
+
+- F7.4: selector real de cliente/inversor/lead en alta de turno (hoy es UUID manual).
+- F7.5: workflow N8N `agenda-google-sync` consumiendo `pg_notify('svi_agenda')`.
+- F7.6: drag & drop para reagendar desde el calendario.
+- F7.7: vistas mensual y de día simple.

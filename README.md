@@ -115,32 +115,53 @@ Ver `ROADMAP_DESARROLLO.md` para detalle por fase.
 | 2 | Auth Supabase + middleware + dashboard | ✅ Completo |
 | 3 | Stock CRUD + Clientes + Leads Kanban | ✅ Completo |
 | 4 | Ventas + Bancos + AFIP/MP/PDF + webhook MP | ✅ Completo (AFIP driver stub) |
-| 5 | Inversiones FCI + extranet real | ⏳ Pendiente |
+| 5 | Inversiones FCI + portal extranet real + N8N liquidación mensual | ✅ Completo |
+| Bonus F5 | Panel Evolution embebido (QR + estado WA en admin) | ✅ Completo |
+| 7 | **Agenda** del owner (multi-recurso) — adelantada antes de F6 | 🟡 Base completa; falta Google Sync (F7.5) |
 | 6 | Caja + cierres | ⏳ Pendiente |
-| 7 | RRHH | ⏳ Pendiente |
-| 8 | IA + analítica | ⏳ Pendiente |
-| 9 | N8N workflows + alertas | ⏳ Pendiente |
-| 10 | Hardening + producción | ⏳ Pendiente |
+| 8 | Agente IA conversacional WhatsApp (read-only → escritura → admin) | ⏳ Próximo |
+| 9 | N8N workflows proactivos (vencimientos, recordatorios, conciliación) | ⏳ Pendiente |
+| 10 | Hardening + producción (rate limit, 2FA, pgsodium, tests E2E) | ⏳ Pendiente |
+| 11 | RRHH y personal *(reordenado al final)* | ⏳ Pendiente |
 
 ---
 
 ## 🚢 Deploy
 
-Ver `.env.production.example` para checklist completo y `docker-compose.yml` con
-Traefik labels (SSL automático). Subdominios provisionales hasta adquirir dominio:
+**Guía operativa principal:** [`infra/DEPLOY.md`](infra/DEPLOY.md) — 11 secciones
+cubriendo arquitectura, primer deploy paso a paso, configuración post-deploy,
+validación e2e, updates, rollback, troubleshooting y checklist único.
+
+Subdominios provisionales hasta adquirir dominio:
 - `svi.srv878399.hstgr.cloud` → landing + portal cliente/inversor
 - `svi-erp.srv878399.hstgr.cloud` → sistema interno
+- `n8n.srv878399.hstgr.cloud` → workflows
+- `evolution.srv878399.hstgr.cloud` → WhatsApp Business
+- `supabase-svi.srv878399.hstgr.cloud` → Studio + REST + Auth
 
-Pre-deploy: ver `docs/PRODUCTION_HARDENING.md` (mensajes de error amigables,
-borrar `/debug/jwt`, 2FA admin, rate limiting, etc).
+**Pre-deploy obligatorio:**
+- [`docs/PRODUCTION_HARDENING.md`](docs/PRODUCTION_HARDENING.md) — 16 secciones
+  (mensajes de error amigables, borrar `/debug/jwt`, 2FA admin, rate limiting,
+  SMTP Supabase, DISABLE_SIGNUP, redirect URLs, rotación secrets, cifrado pgsodium).
+- Script idempotente `infra/scripts/harden-supabase-self-hosted.sh` aplica §14.1-14.3
+  con un comando.
 
 ```bash
 # En el VPS
-cd /opt/svi-erp
+ssh root@srv878399.hstgr.cloud
+git clone <REPO> /root/svi-erp && cd /root/svi-erp
 cp .env.production.example .env.production
-# editar con valores reales
+nano .env.production              # completar valores reales
+
+# Hardening del Supabase auth (idempotente)
+sudo SMTP_PROVIDER=resend SMTP_API_KEY=re_xxx \
+  bash infra/scripts/harden-supabase-self-hosted.sh
+
+# Levantar apps
 docker compose --env-file .env.production up -d --build
 ```
+
+Detalle completo y checklist imprimible en `infra/DEPLOY.md` §3 a §9.
 
 ---
 
