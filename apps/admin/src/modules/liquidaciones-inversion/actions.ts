@@ -163,30 +163,66 @@ export async function generarLiquidacion(
  * Genera liquidaciones del mes actual para TODAS las inversiones activas.
  * Idempotente — las que ya existen no se duplican.
  *
- * Devuelve un resumen con creadas/ya_existian/errores. El cron mensual
- * de pg_cron también termina llamando a esta misma lógica.
+ * Modos:
+ *   - User mode (default): lee `empresa_id` desde el JWT del usuario logueado
+ *     y solo procesa esa empresa. Usado por la UI de admin.
+ *   - System mode: si se pasa `opts.empresaIds`, procesa esas empresas usando
+ *     el service role (omite RLS/JWT). Usado por el endpoint webhook N8N
+ *     `/api/webhooks/n8n/liquidaciones/run-mensual` (F5.7).
+ *
+ * Devuelve un resumen con creadas/ya_existian/errores agrupado por empresa
+ * cuando corre en system mode.
  */
-export async function generarLiquidacionesMesActual(): Promise<
-  ActionResult<{ creadas: number; ya_existian: number; errores: string[] }>
+export async function generarLiquidacionesMesActual(opts?: {
+  empresaIds?: string[];
+  mode?: "user" | "system";
+}): Promise<
+  ActionResult<{
+    creadas: number;
+    ya_existian: number;
+    errores: string[];
+    empresas_procesadas: number;
+  }>
 > {
-  const claims = await getSviClaims();
-  if (!claims) return { ok: false, error: "No autenticado" };
+  const isSystem = opts?.mode === "system";
 
-  const supabase = await createClient();
+  let supabase;
+  let empresaIdsScope: string[] | null = null;
 
-  const { data: invs, error } = await supabase
+  if (isSystem) {
+    supabase = createServiceClient();
+    if (opts?.empresaIds && opts.empresaIds.length > 0) {
+      empresaIdsScope = opts.empresaIds;
+    }
+  } else {
+    const claims = await getSviClaims();
+    if (!claims) return { ok: false, error: "No autenticado" };
+    supabase = await createClient();
+    empresaIdsScope = [claims.empresa_id];
+  }
+
+  let q = supabase
     .from("inversiones")
-    .select("id, numero_contrato")
+    .select("id, numero_contrato, empresa_id")
     .eq("estado", "activa")
     .is("deleted_at", null);
+
+  if (empresaIdsScope) q = q.in("empresa_id", empresaIdsScope);
+
+  const { data: invs, error } = await q;
   if (error) return { ok: false, error: error.message };
 
   let creadas = 0;
   let ya_existian = 0;
   const errores: string[] = [];
+  const empresasProcesadas = new Set<string>();
 
   for (const inv of invs ?? []) {
-    const res = await generarLiquidacion({ inversion_id: inv.id });
+    empresasProcesadas.add(inv.empresa_id);
+    const res = await generarLiquidacionPorInversion(
+      { inversion_id: inv.id },
+      isSystem ? { mode: "system" } : undefined,
+    );
     if (!res.ok) {
       errores.push(`${inv.numero_contrato}: ${res.error}`);
     } else if (res.data.ya_existia) {
@@ -196,8 +232,136 @@ export async function generarLiquidacionesMesActual(): Promise<
     }
   }
 
-  revalidatePath("/liquidaciones");
-  return { ok: true, data: { creadas, ya_existian, errores } };
+  if (!isSystem) revalidatePath("/liquidaciones");
+  return {
+    ok: true,
+    data: {
+      creadas,
+      ya_existian,
+      errores,
+      empresas_procesadas: empresasProcesadas.size,
+    },
+  };
+}
+
+/**
+ * Variante interna de `generarLiquidacion` que evita la dependencia con
+ * `getSviClaims()`. Si corre en system mode, usa service role + se construye
+ * la fila con el `empresa_id` propio de la inversión (no del JWT).
+ */
+async function generarLiquidacionPorInversion(
+  input: LiquidacionGenerarInput,
+  opts?: { mode?: "user" | "system" },
+): Promise<
+  ActionResult<{ id: string; ya_existia: boolean; monto_interes: number }>
+> {
+  if (opts?.mode !== "system") {
+    return generarLiquidacion(input);
+  }
+
+  const parsed = liquidacionGenerarSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Datos inválidos" };
+
+  const supabase = createServiceClient();
+
+  const { data: inv, error: invErr } = await supabase
+    .from("inversiones")
+    .select(
+      "id, empresa_id, numero_contrato, estado, fecha_inicio, capital_actual, tasa_mensual, moneda",
+    )
+    .eq("id", parsed.data.inversion_id)
+    .is("deleted_at", null)
+    .single();
+  if (invErr || !inv) return { ok: false, error: "Inversión no encontrada" };
+
+  if (inv.estado !== "activa") {
+    return {
+      ok: false,
+      error: `No se puede liquidar una inversión en estado ${inv.estado}`,
+    };
+  }
+
+  const periodo: PeriodoYYYYMM = (parsed.data.periodo ??
+    primerDiaDelMes(new Date().toISOString())) as PeriodoYYYYMM;
+
+  if (periodo < primerDiaDelMes(inv.fecha_inicio)) {
+    return {
+      ok: false,
+      error: "El período es anterior al inicio del contrato",
+    };
+  }
+
+  const externalRef = `LIQ-${inv.numero_contrato}-${periodo.slice(0, 7).replace("-", "")}`;
+
+  const { data: existente } = await supabase
+    .from("liquidaciones_inversion")
+    .select("id, monto_interes")
+    .eq("external_ref", externalRef)
+    .maybeSingle();
+
+  if (existente) {
+    return {
+      ok: true,
+      data: {
+        id: existente.id,
+        ya_existia: true,
+        monto_interes: Number(existente.monto_interes),
+      },
+    };
+  }
+
+  const liq = calcularLiquidacionPeriodo({
+    periodo,
+    capital_base: Number(inv.capital_actual),
+    tasa_aplicada_pct: Number(inv.tasa_mensual),
+    moneda: inv.moneda as Moneda,
+  });
+
+  const { data: created, error: insertErr } = await supabase
+    .from("liquidaciones_inversion")
+    .insert({
+      empresa_id: inv.empresa_id,
+      inversion_id: inv.id,
+      periodo,
+      capital_base: liq.capital_base,
+      tasa_aplicada: liq.tasa_aplicada_pct,
+      monto_interes: liq.monto_interes,
+      moneda: liq.moneda,
+      estado: "pendiente",
+      external_ref: externalRef,
+    })
+    .select("id")
+    .single();
+
+  if (insertErr) {
+    if (insertErr.code === "23505") {
+      const { data: again } = await supabase
+        .from("liquidaciones_inversion")
+        .select("id, monto_interes")
+        .eq("external_ref", externalRef)
+        .maybeSingle();
+      if (again) {
+        return {
+          ok: true,
+          data: {
+            id: again.id,
+            ya_existia: true,
+            monto_interes: Number(again.monto_interes),
+          },
+        };
+      }
+    }
+    return { ok: false, error: insertErr.message };
+  }
+
+  return {
+    ok: true,
+    data: {
+      id: created.id,
+      ya_existia: false,
+      monto_interes: liq.monto_interes,
+    },
+  };
 }
 
 /**
