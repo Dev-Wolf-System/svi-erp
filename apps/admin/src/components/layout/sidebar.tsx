@@ -49,7 +49,7 @@ const navigation: NavGroup[] = [
       { href: "/personal", label: "Personal", icon: UserCog },
       { href: "/bancos", label: "Bancos", icon: Building2 },
       { href: "/reportes", label: "Reportes", icon: BarChart3 },
-      { href: "/config", label: "Configuración", icon: Settings },
+      { href: "/configuracion", label: "Configuración", icon: Settings },
     ],
   },
 ];
