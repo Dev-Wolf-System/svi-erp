@@ -99,10 +99,12 @@ services:
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
       - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET}
-      # WhatsApp Business (Evolution API — futuro)
-      - WHATSAPP_API_URL=${WHATSAPP_API_URL}
-      - WHATSAPP_API_KEY=${WHATSAPP_API_KEY}
-      - WHATSAPP_INSTANCE_ID=${WHATSAPP_INSTANCE_ID}
+      # Evolution API — usado por el agente IA (F8+) para empujar mensajes WA.
+      # NO usado por F5.7 (los workflows de N8N tienen su propia credential
+      # de Evolution; el admin no llama a Evolution para liquidación mensual).
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME}
       # IA y observabilidad
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - SENTRY_DSN=${SENTRY_DSN}

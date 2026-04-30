@@ -56,3 +56,6 @@ DatosImportantes.md
 .SVI-skills/
 Media/
 UtilidadesDev/
+
+# Credenciales locales — nunca commitear
+.secrets/
