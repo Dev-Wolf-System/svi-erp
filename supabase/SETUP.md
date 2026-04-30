@@ -395,3 +395,90 @@ sin rediseño.
 ### Cómo desactivar el sello (preview interna sin hash)
 `renderContratoVenta(data, { /* sin verifyBaseUrl */ })` → cae al footer legacy.
 Útil para imprimir borradores que no quieren ir a la página pública.
+
+---
+
+## 17. Webhook N8N — liquidación FCI mensual (F5.7)
+
+### Endpoint expuesto
+
+```
+POST /api/webhooks/n8n/liquidaciones/run-mensual
+Headers:
+  x-n8n-secret: <N8N_WEBHOOK_SECRET>
+  Content-Type: application/json
+Body (opcional):
+  {
+    "periodo": "YYYY-MM",         // default: mes actual
+    "empresa_ids": [uuid, ...]    // default: todas
+  }
+```
+
+### Flujo
+
+1. Verifica `x-n8n-secret` (en producción es obligatorio).
+2. Inserta en `webhook_eventos` con `proveedor='n8n'` y
+   `external_id='liq-mensual:<empresa_csv|all>:<YYYYMM>'`. La unique constraint
+   atrapa reintentos → 200 `{ deduplicated: true }`.
+3. Llama a `generarLiquidacionesMesActual({ mode: 'system', empresaIds })` que
+   recorre todas las inversiones activas y crea las liquidaciones del mes
+   (idempotente vía `external_ref` UNIQUE en `liquidaciones_inversion`).
+4. Persiste el resumen `{ creadas, ya_existian, errores, empresas_procesadas }`
+   en `webhook_eventos.payload.resumen` y marca `procesado=true`.
+5. Devuelve el resumen al caller (N8N).
+
+### Configurar en producción
+
+1. Generar el secret:
+   ```bash
+   openssl rand -hex 32
+   ```
+2. Cargar en `apps/admin/.env.production` → `N8N_WEBHOOK_SECRET=<valor>`.
+3. Cargar el MISMO valor en N8N como variable `SVI_N8N_WEBHOOK_SECRET`.
+4. Reiniciar el container del admin: `docker compose up -d svi-admin`.
+5. Importar el workflow `docs/n8n/workflows/personal-svi-erp/01-liquidacion-mensual.json`
+   en N8N → mover a carpeta `/personal/SVI-ERP` → activar.
+
+Detalle de import + variables N8N en `docs/n8n/README.md`.
+
+### Test manual con curl
+
+```bash
+SECRET="<el_secret>"
+ADMIN_URL="https://svi-erp.srv878399.hstgr.cloud"
+
+curl -X POST "${ADMIN_URL}/api/webhooks/n8n/liquidaciones/run-mensual" \
+  -H "x-n8n-secret: ${SECRET}" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Respuesta:
+```json
+{
+  "ok": true,
+  "deduplicated": false,
+  "periodo": "202604",
+  "creadas": 23,
+  "ya_existian": 0,
+  "errores": [],
+  "empresas_procesadas": 1
+}
+```
+
+Ver registros del run:
+```sql
+SELECT external_id, procesado, payload->'resumen' AS resumen, error, created_at
+FROM webhook_eventos
+WHERE proveedor = 'n8n' AND external_id LIKE 'liq-mensual:%'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+### Por qué N8N y no pg_cron
+
+El cálculo de intereses con redondeo half-even vive en `@repo/utils/calculos-fci`
+(52 tests Vitest). Replicarlo en PL/pgSQL forzaría mantener dos fuentes de
+verdad para el mismo redondeo. El cron pg_notify de la migration 0011 sigue
+disponible como tracer de auditoría (emite `svi_jobs` el día 1) pero NO ejecuta
+el cálculo.

@@ -1,0 +1,288 @@
+{
+  "name": "SVI · 01 — Liquidación FCI mensual",
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 10 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Día 1, 07:30 ART (10:30 UTC)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://svi-erp.srv878399.hstgr.cloud/api/webhooks/n8n/liquidaciones/run-mensual",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 60000
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "http-run-mensual",
+      "name": "POST run-mensual (SVI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "SVI · x-n8n-secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-ok",
+      "name": "¿Resultado OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "notificar_a",
+        "options": {
+          "includeBinary": false
+        }
+      },
+      "id": "split-destinatarios",
+      "name": "Split notificar_a",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-ok",
+              "name": "mensaje",
+              "value": "=Hola {{ $json.nombre }}, ✅ *Liquidación FCI {{ $('POST run-mensual (SVI)').item.json.periodo }}*\n\n• Creadas: *{{ $('POST run-mensual (SVI)').item.json.creadas }}*\n• Ya existían: {{ $('POST run-mensual (SVI)').item.json.ya_existian }}\n• Empresas procesadas: {{ $('POST run-mensual (SVI)').item.json.empresas_procesadas }}\n• Errores: {{ $('POST run-mensual (SVI)').item.json.errores.length }}\n\n{{ $('POST run-mensual (SVI)').item.json.errores.length > 0 ? '⚠️ Errores:\\n' + $('POST run-mensual (SVI)').item.json.errores.join('\\n') : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "tel",
+              "name": "telefono_wa",
+              "value": "={{ $json.telefono_wa }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build-msg-ok",
+      "name": "Armar mensaje OK",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-err",
+              "name": "mensaje",
+              "value": "=🔴 *Error en liquidación FCI mensual*\n\nDetalle: {{ $json.error || $json.detail || 'Sin detalle' }}\n\nRevisar logs admin SVI y reintentar manualmente desde /liquidaciones.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build-msg-err",
+      "name": "Armar mensaje ERROR",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1080,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.srv878399.hstgr.cloud/message/sendText/SVI-ERP",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefono_wa }}\",\n  \"text\": \"{{ $json.mensaje }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          },
+          "retry": {
+            "maxTries": 2,
+            "waitBetweenTries": 5000
+          }
+        }
+      },
+      "id": "wa-send-ok",
+      "name": "Evolution → WA admin (OK)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "SVI · Evolution API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Día 1, 07:30 ART (10:30 UTC)": {
+      "main": [
+        [
+          {
+            "node": "POST run-mensual (SVI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST run-mensual (SVI)": {
+      "main": [
+        [
+          {
+            "node": "¿Resultado OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Resultado OK?": {
+      "main": [
+        [
+          {
+            "node": "Split notificar_a",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar mensaje ERROR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split notificar_a": {
+      "main": [
+        [
+          {
+            "node": "Armar mensaje OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar mensaje OK": {
+      "main": [
+        [
+          {
+            "node": "Evolution → WA admin (OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "",
+    "timezone": "America/Argentina/Buenos_Aires"
+  },
+  "versionCounter": 4
+}

@@ -264,6 +264,25 @@ Estos puntos NO son de la app SVI sino del `.env` de Supabase
 (`/root/supabase-svi/.env` en el VPS). Detectados al cruzar el `.env` real
 contra el código del portal del inversor (F5.6).
 
+### 🚀 Aplicar todo de una con el script
+
+`infra/scripts/harden-supabase-self-hosted.sh` aplica §14.1 + §14.2 + §14.3
+de forma idempotente, hace backup del `.env` y reinicia el container `auth`.
+
+```bash
+# en el VPS, con la API key de Resend (recomendado para SMTP):
+cd /root/svi-erp/infra/scripts
+sudo SMTP_PROVIDER=resend SMTP_API_KEY=re_xxxxxxxxxxxx \
+  bash harden-supabase-self-hosted.sh
+
+# o sin SMTP por ahora (workaround manual con Add user en Studio):
+sudo SMTP_PROVIDER=none bash harden-supabase-self-hosted.sh
+```
+
+El script hace smoke test al final y muestra los próximos pasos manuales
+(actualizar Studio → Authentication → URL Configuration). Las secciones
+14.1-14.3 abajo son la referencia detallada de qué hace cada parte.
+
 ### 14.1. SMTP — habilitar antes del primer inversor con portal
 
 **Estado actual** del `.env` del Supabase: `SMTP_HOST=`, `SMTP_USER=`,
@@ -346,21 +365,130 @@ Cuando se compre el dominio definitivo, sumar los nuevos también.
 
 ### 14.4. Postgres password en URL externa
 
-`POSTGRES_PASSWORD=2105.Lucifer98$` — el `$` debe escaparse como `%24`
-cuando se usa en `DATABASE_URL`:
+El `POSTGRES_PASSWORD` actual contiene `$` al final — debe escaparse como `%24`
+cuando se usa en `DATABASE_URL` (de lo contrario el parser de pg lo interpreta
+como inicio de variable y lo rompe):
 
 ```env
-# CORRECTO
-DATABASE_URL=postgresql://postgres:2105.Lucifer98%24@supabase-svi.srv878399.hstgr.cloud:5432/postgres
+# CORRECTO (con $ escapado)
+DATABASE_URL=postgresql://postgres:<password-url-encoded>@supabase-svi.srv878399.hstgr.cloud:5432/postgres
 
 # INCORRECTO (rompe el parser de pg)
-DATABASE_URL=postgresql://postgres:2105.Lucifer98$@supabase-svi.srv878399.hstgr.cloud:5432/postgres
+DATABASE_URL=postgresql://postgres:<password-con-$-sin-escapar>@supabase-svi.srv878399.hstgr.cloud:5432/postgres
 ```
+
+⚠️ Adicional: este password **ya quedó expuesto en commits previos** del repo
+(commit `0eabbb6` y anteriores). Es **obligatorio rotarlo pre-producción** —
+ver §15 para el procedimiento.
 
 Adicional: hoy el puerto 5432 está expuesto al internet. Recomendable
 restringirlo por firewall a la IP del VPS o tunelizar por SSH cuando
 se necesite. La operación normal de SVI NO necesita conexión directa
 a Postgres — todo va por la API de Supabase.
+
+---
+
+## 15. Rotación de secrets compartidos (N8N + MP + Evolution + Postgres)
+
+### ⚠️ Reuso de credencial entre Postgres y Evolution
+
+**Detectado 2026-04-30:** la misma string se usa simultáneamente como:
+- `POSTGRES_PASSWORD` del Supabase self-hosted (con `$` final)
+- `AUTHENTICATION_API_KEY` global de Evolution API (sin `$`, cargado en
+  credential N8N `SVI · Evolution API`)
+
+**Riesgo:** si Evolution API se compromete (RCE, dependencia con CVE), el
+atacante obtiene credenciales DB completas. Y viceversa.
+
+**Acción pre-producción** (Fase 10):
+1. Rotar `AUTHENTICATION_API_KEY` de Evolution a un valor independiente:
+   ```bash
+   openssl rand -hex 32  # nuevo apikey Evolution
+   ```
+   Cambiar en `/root/evolution-api/.env` (o donde corra Evolution) y
+   reiniciar el container. Actualizar la credential N8N `SVI · Evolution API`
+   con el nuevo valor.
+2. Rotar `POSTGRES_PASSWORD` por algo más fuerte y único:
+   ```bash
+   openssl rand -base64 32 | tr -d '=' | tr '/' '_'
+   ```
+   Cambiar en `/root/supabase-svi/.env` y propagar al `DATABASE_URL` de SVI.
+3. Idealmente, ambos en un secret manager (Vault, Doppler, 1Password CLI)
+   en lugar de archivos `.env` planos.
+
+### Estado actual
+
+- `N8N_WEBHOOK_SECRET` (F5.7) y `MP_WEBHOOK_SECRET` (F4.5) son los dos
+  secrets compartidos entre SVI y proveedores externos.
+- Ambos en `apps/admin/.env.local` (dev) y `.env.production` (prod).
+- En N8N el mismo valor está como variable `SVI_N8N_WEBHOOK_SECRET`.
+- En MP el mismo valor está en panel → Webhooks → "Clave secreta".
+
+### Política mínima sugerida pre-producción
+
+- **Rotación trimestral** del `N8N_WEBHOOK_SECRET` (bajo riesgo: solo lo
+  conocen N8N y SVI, ambos sistemas que controlamos).
+- **Rotación semestral** del `MP_WEBHOOK_SECRET` (más fricción: implica
+  re-configurar el webhook en el panel MP y reiniciar containers).
+- **Rotación inmediata** si se sospecha leak (logs, repo público, employee
+  ex-empleado con acceso a panel).
+
+### Procedimiento rotación N8N
+
+1. Generar nuevo secret: `openssl rand -hex 32`.
+2. Setear como variable temporal en N8N: `SVI_N8N_WEBHOOK_SECRET_NEW`.
+3. Setear en SVI dual-key (si llegamos a implementar acepta-old-or-new):
+   ```env
+   N8N_WEBHOOK_SECRET=<viejo>
+   N8N_WEBHOOK_SECRET_NEXT=<nuevo>
+   ```
+   (a implementar en `lib/webhooks/n8n-auth.ts` cuando llegue la 1ª rotación).
+4. Apuntar workflows N8N al nuevo secret.
+5. Confirmar tráfico con el nuevo.
+6. Borrar el viejo de SVI y de N8N.
+
+### Procedimiento rotación MP
+
+1. Generar nuevo secret en panel MP.
+2. Cambiar en `.env.production` del admin.
+3. Reiniciar container `svi-admin`.
+4. Reenviar webhooks fallidos desde panel MP (si los hay).
+
+### NUNCA
+
+- Commitear el secret a git (audit con `git-secrets` antes del primer push
+  externo).
+- Compartir por canales no encriptados (Slack DM OK; email NO).
+- Reutilizar el mismo secret entre dev y prod.
+
+---
+
+## 16. Cifrado pgsodium en payloads del agente IA (F8+)
+
+Cuando el agente WhatsApp esté en producción, los mensajes en
+`asistente_mensajes.content` y `tool_input/tool_output` pueden contener
+datos sensibles (montos, CBU mencionado en chat, fragmentos de DNI).
+
+### Lo que hay que hacer antes de producción del agente
+
+1. Habilitar `pgsodium` (ya está cargado desde 0001).
+2. Migración aditiva que cifra columnas:
+   ```sql
+   ALTER TABLE asistente_mensajes
+     ADD COLUMN content_enc      bytea,
+     ADD COLUMN tool_input_enc   bytea,
+     ADD COLUMN tool_output_enc  bytea;
+   -- backfill + drop columnas planas
+   ```
+3. VIEW `asistente_mensajes_decrypted` con permiso solo a roles autorizados.
+4. Auditoría obligatoria de cada SELECT a la VIEW (extender `audit_log`).
+5. Doble factor para acceso a la VIEW (admin app: re-auth con TOTP en sesiones
+   con +15min de antigüedad).
+
+### Archivos afectados (cuando llegue F8)
+
+- `packages/agent/src/memory.ts` — usar VIEW al leer, encrypt al insertar.
+- Schema: nueva migration `0024_pgsodium_asistente_payloads.sql`.
 
 ---
 
