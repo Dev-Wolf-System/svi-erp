@@ -16,6 +16,7 @@ import {
   UserCog,
   Building2,
   BarChart3,
+  CalendarDays,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const navigation: NavGroup[] = [
       { href: "/inversiones", label: "Inversiones", icon: CircleDollarSign },
       { href: "/liquidaciones", label: "Liquidaciones", icon: Receipt },
       { href: "/solicitudes-aporte", label: "Solicitudes", icon: Inbox },
+      { href: "/agenda", label: "Agenda", icon: CalendarDays },
       { href: "/caja", label: "Caja", icon: Wallet },
     ],
   },
