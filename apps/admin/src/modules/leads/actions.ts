@@ -77,6 +77,16 @@ export async function asignarVendedor(
   const parsed = leadAsignarSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos inválidos" };
 
+  const claims = await getSviClaims();
+  if (!claims) return { ok: false, error: "No autenticado" };
+
+  const { assertCan } = await import("@repo/utils");
+  try {
+    assertCan("leads.assign", claims.rol);
+  } catch {
+    return { ok: false, error: "Sin permiso para asignar leads" };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("leads")

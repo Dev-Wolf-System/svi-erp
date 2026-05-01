@@ -40,6 +40,12 @@ export const PERMISSIONS = {
   "config.view":          ["super_admin", "admin"],
   "config.edit":          ["super_admin"],
   "config.integraciones": ["super_admin"],
+
+  "secretaria.dashboard":   ["super_admin", "admin", "gerente", "secretaria"],
+  "agenda.view":            ["super_admin", "admin", "gerente", "vendedor", "secretaria"],
+  "agenda.crear_turno":     ["super_admin", "admin", "gerente", "secretaria"],
+  "agenda.gestionar_turno": ["super_admin", "admin", "gerente", "secretaria"],
+  "leads.assign":           ["super_admin", "admin", "gerente", "secretaria"],
 } as const satisfies Record<string, readonly Rol[]>;
 
 export type Permission = keyof typeof PERMISSIONS;
