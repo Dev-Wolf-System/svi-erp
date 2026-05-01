@@ -1,7 +1,7 @@
 # SVI ERP/CRM — Solo Vehículos Impecables
 
 Sistema de gestión empresarial multisucursal para concesionaria automotor.
-Stack: **Next.js 15 + Supabase + Drizzle + Turborepo + Tailwind v4**.
+Stack: **Next.js 15 + Supabase + Drizzle + Turborepo + Tailwind v4 + OpenAI (gpt-5 family) + Redis (ioredis) + pgvector**.
 
 > Plan maestro completo: `SVI_PLAN_MAESTRO_DEFINITIVO.md`
 > Stack detallado: `STACK_TECNOLOGICO.md`
@@ -17,7 +17,16 @@ svi-erp/
 │   ├── web/              landing pública + portal extranet (cliente/inversor)
 │   │                       :3000 → svi.com.ar (prod)
 │   └── admin/            panel privado ERP/CRM
-│                           :3001 → app.svi.com.ar (prod)
+│       │                   :3001 → app.svi.com.ar (prod)
+│       └── src/
+│           ├── modules/ai/        capa IA transversal (insights, anomalies,
+│           │                        categorize, forecast, embeddings, chat)
+│           ├── components/ai/     componentes UI reutilizables
+│           │                        (<AiInsightsWidget>, <AiAnomalyBadge>,
+│           │                         <AiSuggestInput>, <AiNarrativeBlock>,
+│           │                         <AiForecastChart>, <AiChatFloating>)
+│           └── app/api/ai/        7 endpoints REST de IA (insights, categorize,
+│                                    anomalies, forecast, chat-SSE, analyze, report)
 ├── packages/
 │   ├── ui/               design system compartido
 │   ├── database/         Drizzle schema + clientes Supabase SSR
@@ -28,7 +37,7 @@ svi-erp/
 │   ├── eslint-config/    configs ESLint compartidas
 │   └── typescript-config/ tsconfigs compartidos
 ├── supabase/
-│   ├── migrations/       13 migraciones SQL versionadas
+│   ├── migrations/       24 migraciones SQL versionadas (incluye 0022-0024 para capa IA)
 │   ├── seed/             datos demo
 │   ├── _consolidated_schema.sql  todo en un archivo (para SQL Editor)
 │   └── SETUP.md          guía operativa de inicialización
@@ -81,6 +90,8 @@ npm run dev
 # admin → http://localhost:3001
 ```
 
+> **Para usar la capa IA (F6.G+):** completar `OPENAI_API_KEY` y `REDIS_URL` en `.env.local`. Detalles en `infra/DEPLOY.md` sección Redis SVI.
+
 ### Si algo se traba
 
 ```bash
@@ -124,7 +135,9 @@ Ver `ROADMAP_DESARROLLO.md` para detalle por fase.
 | 7.5 | Sync Google Calendar via N8N (`agenda-google-sync`) | ⏳ Pendiente |
 | 7.6 | Drag & drop para reagendar en calendario semanal | ⏳ Pendiente |
 | 7.7 | Vista mensual + vista día en calendario | ⏳ Pendiente |
-| 6 | Caja + cierres diarios | ⏳ Pendiente |
+| 6 base | Caja + cierres diarios | ✅ Completo |
+| 6.G | **Capa IA Transversal** — migrations 0022-0024 + módulo `modules/ai/` + 7 endpoints + 6 componentes + asistente flotante | ✅ Completo |
+| 6.A-6.F | Dashboard Caja con IA, búsqueda semántica, multi-moneda, reportes narrativa, auditoría, UX inteligente | ⏳ Pendiente |
 | 8 | Agente IA conversacional WhatsApp (read-only → escritura → admin) | ⏳ Próximo |
 | 9 | N8N workflows proactivos (vencimientos, recordatorios, conciliación) | ⏳ Pendiente |
 | 10 | Hardening + producción (rate limit, 2FA, pgsodium, tests E2E) | ⏳ Pendiente |
@@ -185,4 +198,4 @@ Para más detalles ver `docs/adr/` y `SVI_PLAN_MAESTRO_DEFINITIVO.md`.
 
 ---
 
-*Mantenido por Dev-Wolf Soluciones IT · Last update: 2026-05-01 (post F7.4 + F7.9)*
+*Mantenido por Dev-Wolf Soluciones IT · Last update: 2026-05-01 (post F6.G capa IA transversal)*
