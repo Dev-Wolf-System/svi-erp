@@ -6,6 +6,9 @@ import { chatCompletion, type ModelTier } from "@/modules/ai/client";
 import { logTokenUsage, isOverBudget } from "@/modules/ai/audit";
 import { redactObject } from "@/modules/ai/redact";
 import { checkRateLimit } from "@/modules/ai/rate-limit";
+import { getMovimientosFiltrados } from "./queries";
+import { CATEGORIAS_INGRESO, CATEGORIAS_EGRESO } from "./schemas";
+import type { TipoMovimiento, Moneda } from "./schemas";
 
 // ─── Tipos compartidos ───────────────────────────────────────────────────────
 
@@ -14,6 +17,42 @@ export type ReporteHighlight = { label: string; value: string };
 export type ReporteResult =
   | { ok: true; data: { narrative: string; highlights: ReporteHighlight[] } }
   | { ok: false; error: string };
+
+export type CsvResult =
+  | { ok: true; data: { filename: string; csv: string } }
+  | { ok: false; error: string };
+
+// ─── Helpers CSV ─────────────────────────────────────────────────────────────
+
+function labelCategoria(tipo: TipoMovimiento, value: string): string {
+  const lista = tipo === "ingreso" ? CATEGORIAS_INGRESO : CATEGORIAS_EGRESO;
+  return (lista as readonly { value: string; label: string }[])
+    .find((c) => c.value === value)?.label ?? value;
+}
+
+function escapeCsv(field: string | number | null | undefined): string {
+  if (field === null || field === undefined) return "";
+  const s = String(field);
+  if (s.includes(",") || s.includes("\"") || s.includes("\n") || s.includes("\r")) {
+    return `"${s.replace(/"/g, "\"\"")}"`;
+  }
+  return s;
+}
+
+function fmtFechaArt(iso: string): { fecha: string; hora: string } {
+  const d = new Date(iso);
+  const fecha = new Intl.DateTimeFormat("fr-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(d);
+  const hora = new Intl.DateTimeFormat("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    hour:     "2-digit",
+    minute:   "2-digit",
+    second:   "2-digit",
+    hour12:   false,
+  }).format(d);
+  return { fecha, hora };
+}
 
 // ─── Action: narrativa IA ────────────────────────────────────────────────────
 
@@ -154,4 +193,96 @@ Generá el resumen ejecutivo y los highlights ahora.`;
   }
 
   return { ok: true, data: { narrative, highlights } };
+}
+
+// ─── Action: export CSV de movimientos ───────────────────────────────────────
+
+export async function exportarMovimientosCSV(filtros: {
+  sucursalId: string;
+  desde:      string; // YYYY-MM-DD ART
+  hasta:      string; // YYYY-MM-DD ART
+  tipo?:      string;
+  categoria?: string;
+  moneda?:    string;
+}): Promise<CsvResult> {
+  const claims = await getSviClaims();
+  if (!claims) return { ok: false, error: "No autenticado" };
+  if (!can("caja.view_propia", claims.rol)) {
+    return { ok: false, error: "Sin permisos para exportar movimientos" };
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(filtros.desde) || !/^\d{4}-\d{2}-\d{2}$/.test(filtros.hasta)) {
+    return { ok: false, error: "Rango de fechas inválido" };
+  }
+  if (filtros.desde > filtros.hasta) {
+    return { ok: false, error: "La fecha 'desde' debe ser anterior o igual a 'hasta'" };
+  }
+
+  const tipoNorm      = filtros.tipo   as TipoMovimiento | "todos" | undefined;
+  const monedaNorm    = filtros.moneda as Moneda | "todas" | undefined;
+  const categoriaNorm = filtros.categoria;
+
+  // Iteramos en páginas de 10k para no romper memoria si hay > 10k filas.
+  // Limit de seguridad: 100k filas máx por export.
+  const pageSize = 10000;
+  const MAX_FILAS = 100_000;
+  let page = 1;
+  const all: Awaited<ReturnType<typeof getMovimientosFiltrados>>["movimientos"] = [];
+
+  while (true) {
+    const res = await getMovimientosFiltrados({
+      sucursalId: filtros.sucursalId,
+      desde:      filtros.desde,
+      hasta:      filtros.hasta,
+      tipo:       tipoNorm,
+      categoria:  categoriaNorm,
+      moneda:     monedaNorm,
+      page,
+      pageSize,
+    });
+    all.push(...res.movimientos);
+    if (all.length >= MAX_FILAS) break;
+    if (page >= res.totalPages || res.movimientos.length === 0) break;
+    page += 1;
+  }
+
+  const headers = [
+    "fecha",
+    "hora",
+    "tipo",
+    "categoria",
+    "concepto",
+    "monto",
+    "moneda",
+    "registrado_por",
+    "comprobante_url",
+  ];
+
+  const rows: string[] = [];
+  rows.push(headers.join(","));
+
+  for (const m of all) {
+    const { fecha, hora } = fmtFechaArt(m.fecha_operacion);
+    const cells = [
+      escapeCsv(fecha),
+      escapeCsv(hora),
+      escapeCsv(m.tipo),
+      escapeCsv(labelCategoria(m.tipo, m.categoria)),
+      escapeCsv(m.concepto),
+      escapeCsv(Number(m.monto).toFixed(2)),
+      escapeCsv(m.moneda),
+      escapeCsv(m.registrado_por ?? ""),
+      escapeCsv(m.comprobante_url ?? ""),
+    ];
+    rows.push(cells.join(","));
+  }
+
+  // BOM UTF-8 para que Excel detecte encoding
+  const BOM = "﻿";
+  const csv = BOM + rows.join("\r\n");
+
+  const sucursalShort = filtros.sucursalId.slice(0, 8);
+  const filename = `caja_movimientos_${sucursalShort}_${filtros.desde}_${filtros.hasta}.csv`;
+
+  return { ok: true, data: { filename, csv } };
 }
