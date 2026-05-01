@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { registrarMovimiento } from "@/modules/caja/actions";
@@ -10,6 +10,7 @@ import {
   MONEDAS,
   type MovimientoCreateInput,
 } from "@/modules/caja/schemas";
+import { AiSuggestInput } from "@/components/ai/ai-suggest-input";
 
 export function NuevoMovimientoForm({
   sucursalId,
@@ -21,8 +22,15 @@ export function NuevoMovimientoForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [tipo, setTipo] = useState<"ingreso" | "egreso">("ingreso");
+  const [concepto, setConcepto] = useState("");
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("");
 
   const categorias = tipo === "ingreso" ? CATEGORIAS_INGRESO : CATEGORIAS_EGRESO;
+
+  // Si cambia el tipo (ingreso/egreso), reset categoría — el set de candidates cambia
+  useEffect(() => {
+    setCategoriaSeleccionada("");
+  }, [tipo]);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -88,6 +96,8 @@ export function NuevoMovimientoForm({
           id="categoria"
           name="categoria"
           required
+          value={categoriaSeleccionada}
+          onChange={(e) => setCategoriaSeleccionada(e.target.value)}
           className="w-full rounded-lg bg-svi-elevated border border-svi-border-muted px-3 py-2.5 text-sm text-svi-white focus:outline-none focus:ring-1 focus:ring-svi-gold/50"
         >
           <option value="">Seleccioná una categoría</option>
@@ -111,8 +121,18 @@ export function NuevoMovimientoForm({
           required
           minLength={2}
           maxLength={200}
+          value={concepto}
+          onChange={(e) => setConcepto(e.target.value)}
           placeholder="Ej: Cobro factura #1234"
           className="w-full rounded-lg bg-svi-elevated border border-svi-border-muted px-3 py-2.5 text-sm text-svi-white placeholder:text-svi-muted-2 focus:outline-none focus:ring-1 focus:ring-svi-gold/50"
+        />
+        <AiSuggestInput
+          text={concepto}
+          moduleKey="caja"
+          candidateCategories={[...categorias]}
+          onSuggest={(s) => {
+            if (s) setCategoriaSeleccionada(s.value);
+          }}
         />
       </div>
 
