@@ -8,7 +8,8 @@ import {
   MapPin, Video, Phone, Clock, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cambiarEstadoTurno, type Turno } from "@/modules/agenda";
+import { cambiarEstadoTurno } from "@/modules/agenda/actions";
+import type { Turno } from "@/modules/agenda/schemas";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

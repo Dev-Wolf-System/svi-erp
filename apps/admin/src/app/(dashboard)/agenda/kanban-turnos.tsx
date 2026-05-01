@@ -1,4 +1,4 @@
-import type { Turno } from "@/modules/agenda";
+import type { Turno } from "@/modules/agenda/schemas";
 import { TurnoKanbanCard } from "./turno-kanban-card";
 
 const COLUMNAS = [
