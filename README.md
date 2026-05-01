@@ -118,8 +118,9 @@ Ver `ROADMAP_DESARROLLO.md` para detalle por fase.
 | 5 | Inversiones FCI + portal extranet real + N8N liquidación mensual | ✅ Completo |
 | Bonus F5 | Panel Evolution embebido (QR + estado WA en admin) | ✅ Completo |
 | 7.1–7.3 | **Agenda** del owner — migration + módulo + UI calendario semanal | ✅ Completo |
+| 7.4 | Selector real cliente/inversor/lead en formulario de nuevo turno | ✅ Completo |
 | 7.8 | **Panel Secretaria** — sidebar role-adaptive + dashboard día + kanban + vista vendedores | ✅ Completo |
-| 7.4 | Selector real cliente/inversor/lead en formulario de nuevo turno | ⏳ Pendiente |
+| 7.9 | **Kanban de turnos** — vista por estado (solicitado/confirmado/cumplido/cancelado) con acciones inline | ✅ Completo |
 | 7.5 | Sync Google Calendar via N8N (`agenda-google-sync`) | ⏳ Pendiente |
 | 7.6 | Drag & drop para reagendar en calendario semanal | ⏳ Pendiente |
 | 7.7 | Vista mensual + vista día en calendario | ⏳ Pendiente |
@@ -184,4 +185,4 @@ Para más detalles ver `docs/adr/` y `SVI_PLAN_MAESTRO_DEFINITIVO.md`.
 
 ---
 
-*Mantenido por Dev-Wolf Soluciones IT · Last update: 2026-05-01*
+*Mantenido por Dev-Wolf Soluciones IT · Last update: 2026-05-01 (post F7.4 + F7.9)*

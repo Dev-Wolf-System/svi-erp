@@ -1,7 +1,7 @@
 # 🏎️ ROADMAP DE DESARROLLO — SVI ERP/CRM
 
 **Estado:** 🟢 En desarrollo activo
-**Fase actual:** F7 🟡 Agenda — base + secretaria completas; pendiente F7.4-F7.7 + F6 Caja + F8 Agente IA
+**Fase actual:** F7 🟡 Agenda — base + secretaria + kanban + selector persona completos; pendiente F7.5-F7.7 + F6 Caja + F8 Agente IA
 **Última actualización:** 2026-05-01
 
 > Plan completo: `SVI_PLAN_MAESTRO_DEFINITIVO.md` v2.1
@@ -30,8 +30,9 @@
 | **FASE 5.7** | N8N workflow liquidación mensual | ✅ **Completo** | Endpoint webhook + workflow N8N + destinatarios desde Supabase + panel Evolution en admin |
 | FASE 6 | Caja + cierres diarios | ⚪ Pendiente | |
 | **FASE 7.1–7.3** | **Agenda del owner** — migration + módulo + UI calendario | ✅ **Completo** | Migration 0021 + módulo + calendario semanal + CRUD recursos |
+| **FASE 7.4** | **Selector persona en turno** | ✅ **Completo** | Combobox debounced; pre-selección desde /secretaria/asignaciones |
 | **FASE 7.8** | **Panel Secretaria** | ✅ **Completo** | Sidebar role-adaptive + dashboard día + kanban leads + agenda vendedores |
-| FASE 7.4 | Selector real cliente/inversor/lead en formulario turno | ⚪ Pendiente | Hoy es UUID manual |
+| **FASE 7.9** | **Kanban de turnos** | ✅ **Completo** | Vista por estado default; toggle Kanban ↔ Calendario; acciones inline |
 | FASE 7.5 | Sync Google Calendar via N8N (`agenda-google-sync`) | ⚪ Pendiente | `pg_notify` → N8N → Google Calendar API |
 | FASE 7.6 | Drag & drop para reagendar en calendario | ⚪ Pendiente | dnd-kit sobre el calendario semanal |
 | FASE 7.7 | Vista mensual + vista día | ⚪ Pendiente | |
@@ -335,11 +336,24 @@ Reemplaza la dependencia de la UI externa para mantenimiento operativo.
 - `/secretaria/asignaciones` — kanban leads→vendedores con asignación inline (`asignarVendedor` action con `assertCan('leads.assign')`).
 - `/secretaria/vendedores` — tabla vendedores activos con turnos de la semana y % ocupación.
 
+**Selector persona** (`F7.4`):
+- Combobox con búsqueda debounced (300ms) para cliente, inversor y lead
+- `buscarPersonas(tipo, q)` server action con `ilike` por nombre/email/teléfono
+- Pre-selección automática cuando se navega desde `/secretaria/asignaciones?persona_id=&persona_tipo=`
+- Regla importante: client components importan server actions **directamente** de `actions.ts`, no del barrel
+
+**Kanban de turnos** (`F7.9`):
+- Vista por estado como default en `/agenda` (toggle Kanban ↔ Calendario en header)
+- 4 columnas: Solicitado (amber) / Confirmado (azul) / Cumplido (verde) / Cancelado+No-show (rojo)
+- Cards: persona, recurso con color, fecha/hora legible, motivo, modalidad
+- Turnos vencidos en estado "solicitado" se destacan visualmente
+- Acciones inline: Confirmar, Cumplido, No-show, Cancelar (con doble confirmación)
+- Todos los filtros (semana, recurso) aplican a ambas vistas
+
 ### ⏳ Pendiente
 
 | Sub-fase | Qué falta | Notas |
 |---|---|---|
-| F7.4 | Selector real de cliente/inversor/lead en formulario de nuevo turno | Hoy es UUID manual |
 | F7.5 | Sync Google Calendar via N8N | `pg_notify` → N8N → Google Calendar API |
 | F7.6 | Drag & drop para reagendar | dnd-kit sobre calendario semanal |
 | F7.7 | Vista mensual + vista día | |
