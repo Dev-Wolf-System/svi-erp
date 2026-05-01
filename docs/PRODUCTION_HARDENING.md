@@ -195,7 +195,7 @@ SELECT version, name FROM schema_migrations ORDER BY version;  -- si usás supab
 SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
 ```
 
-Migrations actuales (al 2026-04-29):
+Migrations actuales (al 2026-05-01):
 - 0001-0011: schema base + RLS + cron
 - 0012: constraints ventas
 - 0013: SECURITY DEFINER en triggers internos
@@ -206,7 +206,9 @@ Migrations actuales (al 2026-04-29):
 - 0018: liquidaciones recibo + modo retirar/reinvertir
 - 0019: aportes adicionales del inversor
 - 0020: solicitudes de aporte + modo solicitado por inversor
-- 0021: agenda (recursos + disponibilidad + bloqueos + turnos con anti-overlapping)
+- 0021: agenda (recursos + disponibilidad + bloqueos + turnos con anti-overlapping + pg_notify)
+- _F7.8 Panel Secretaria no agregó migrations — solo código/UI_
+- _F8 necesitará 0022 (asistente_conversaciones) + 0023 (telefono_verificado)_
 
 ---
 
