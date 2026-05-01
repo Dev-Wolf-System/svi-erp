@@ -393,6 +393,29 @@ a Postgres — todo va por la API de Supabase.
 
 ## 15. Rotación de secrets compartidos (N8N + MP + Evolution + Postgres)
 
+### Incidente 2026-05-01 (resuelto)
+
+- `POSTGRES_PASSWORD` del Supabase self-hosted estuvo expuesto en git history
+  público (commits `0eabbb6`, `54c1371`).
+- Acción: rotación interna del password vía `ALTER USER` en Postgres (no via
+  recreación del volumen).
+- Mitigación: repo cambiado a privado en GitHub UI.
+- Decisión: no aplicar `git filter-repo` (riesgo de force-push >>> beneficio
+  con repo ya privado y password ya rotado).
+- Lección: pre-commit hook con `gitleaks` o `detect-secrets` queda como deuda
+  técnica para evitar reincidencia.
+
+### Cadencia de rotación (política mínima)
+
+| Secret | Cadencia | Notas |
+|---|---|---|
+| `OPENAI_API_KEY` | 90 días | Capa IA F6.G+ |
+| `SVI_REDIS_PASSWORD` | 180 días | Stack `svi_redis` dedicado |
+| `EVOLUTION_API_KEY` | **rotar ASAP** | Coincide con patrón del `POSTGRES_PASSWORD` viejo (ver §15.1) |
+| `N8N_WEBHOOK_SECRET` | trimestral | Bajo riesgo: solo lo conocen N8N y SVI |
+| `MP_WEBHOOK_SECRET` | semestral | Mayor fricción (re-config en panel MP) |
+| `POSTGRES_PASSWORD` | tras incidente / anual | Ya rotado el 2026-05-01 |
+
 ### ⚠️ Reuso de credencial entre Postgres y Evolution
 
 **Detectado 2026-04-30:** la misma string se usa simultáneamente como:
