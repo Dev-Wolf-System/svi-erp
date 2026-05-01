@@ -46,6 +46,13 @@ export const PERMISSIONS = {
   "agenda.crear_turno":     ["super_admin", "admin", "gerente", "secretaria"],
   "agenda.gestionar_turno": ["super_admin", "admin", "gerente", "secretaria"],
   "leads.assign":           ["super_admin", "admin", "gerente", "secretaria"],
+
+  // ─── IA ───────────────────────────────────────────────────────────────────
+  "ia.use":          ["super_admin", "admin", "gerente", "vendedor", "secretaria", "caja"],
+  "ia.chat":         ["super_admin", "admin", "gerente", "vendedor", "secretaria", "caja"],
+  "ia.report":       ["super_admin", "admin", "gerente"],
+  "ia.usage_view":   ["super_admin", "admin"],
+  "ia.config":       ["super_admin"],
 } as const satisfies Record<string, readonly Rol[]>;
 
 export type Permission = keyof typeof PERMISSIONS;
