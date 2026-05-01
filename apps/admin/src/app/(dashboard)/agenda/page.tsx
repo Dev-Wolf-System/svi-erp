@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, Plus, Settings2 } from "lucide-react";
+import { CalendarDays, Plus, Settings2, LayoutGrid } from "lucide-react";
 import { getSviClaims } from "@/lib/auth/claims";
 import { getRecursos, getTurnosRango } from "@/modules/agenda/queries";
 import { CalendarioSemanal } from "./calendario-semanal";
+import { KanbanTurnos } from "./kanban-turnos";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ function addDays(d: Date, n: number): Date {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ semana?: string; recurso?: string }>;
+  searchParams?: Promise<{ semana?: string; recurso?: string; vista?: string }>;
 }) {
   const claims = await getSviClaims();
   if (!claims) redirect("/login");
@@ -38,6 +39,7 @@ export default async function AgendaPage({
   const sp = (await searchParams) ?? {};
   const semanaIso = sp.semana;
   const recursoFiltro = sp.recurso;
+  const vista = sp.vista === "calendario" ? "calendario" : "kanban";
 
   const lunes = semanaIso ? startOfWeek(new Date(semanaIso)) : startOfWeek(new Date());
   const domingo = addDays(lunes, 7);
@@ -54,6 +56,17 @@ export default async function AgendaPage({
   const lunesAnterior = addDays(lunes, -7).toISOString().slice(0, 10);
   const lunesSiguiente = addDays(lunes, 7).toISOString().slice(0, 10);
   const hoyParam = startOfWeek(new Date()).toISOString().slice(0, 10);
+
+  // Helpers para construir URLs preservando todos los params actuales
+  function withParam(key: string, value: string) {
+    const base = new URLSearchParams({
+      ...(semanaIso ? { semana: semanaIso } : {}),
+      ...(recursoFiltro ? { recurso: recursoFiltro } : {}),
+      vista,
+    });
+    base.set(key, value);
+    return `/agenda?${base.toString()}`;
+  }
 
   return (
     <div className="container max-w-[1400px] py-6 space-y-6">
@@ -72,23 +85,49 @@ export default async function AgendaPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle vista */}
+          <div className="flex rounded-lg border border-svi-border-muted overflow-hidden">
+            <Link
+              href={withParam("vista", "kanban")}
+              className={`text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition ${
+                vista === "kanban"
+                  ? "bg-svi-gold text-svi-black font-medium"
+                  : "text-svi-muted hover:text-svi-white hover:bg-svi-elevated"
+              }`}
+            >
+              <LayoutGrid className="size-3.5" />
+              Kanban
+            </Link>
+            <Link
+              href={withParam("vista", "calendario")}
+              className={`text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition border-l border-svi-border-muted ${
+                vista === "calendario"
+                  ? "bg-svi-gold text-svi-black font-medium"
+                  : "text-svi-muted hover:text-svi-white hover:bg-svi-elevated"
+              }`}
+            >
+              <CalendarDays className="size-3.5" />
+              Calendario
+            </Link>
+          </div>
+
           <Link
-            href={`/agenda?semana=${hoyParam}${recursoFiltro ? `&recurso=${recursoFiltro}` : ""}`}
+            href={withParam("semana", hoyParam)}
             className="text-xs px-3 py-1.5 rounded-md border border-svi-border-muted text-svi-muted hover:text-svi-white hover:bg-svi-elevated transition"
           >
             Hoy
           </Link>
           <Link
-            href={`/agenda?semana=${lunesAnterior}${recursoFiltro ? `&recurso=${recursoFiltro}` : ""}`}
+            href={withParam("semana", lunesAnterior)}
             className="text-xs px-3 py-1.5 rounded-md border border-svi-border-muted text-svi-muted hover:text-svi-white hover:bg-svi-elevated transition"
           >
-            ← Semana anterior
+            ← Anterior
           </Link>
           <Link
-            href={`/agenda?semana=${lunesSiguiente}${recursoFiltro ? `&recurso=${recursoFiltro}` : ""}`}
+            href={withParam("semana", lunesSiguiente)}
             className="text-xs px-3 py-1.5 rounded-md border border-svi-border-muted text-svi-muted hover:text-svi-white hover:bg-svi-elevated transition"
           >
-            Semana siguiente →
+            Siguiente →
           </Link>
           <Link
             href="/agenda/recursos"
@@ -113,7 +152,7 @@ export default async function AgendaPage({
             Filtrar por recurso:
           </span>
           <Link
-            href="/agenda"
+            href={`/agenda?vista=${vista}${semanaIso ? `&semana=${semanaIso}` : ""}`}
             className={`px-3 py-1 rounded-full border transition ${
               !recursoFiltro
                 ? "border-svi-gold bg-svi-gold/10 text-svi-gold"
@@ -125,17 +164,13 @@ export default async function AgendaPage({
           {recursos.map((r) => (
             <Link
               key={r.id}
-              href={`/agenda?recurso=${r.id}`}
+              href={withParam("recurso", r.id)}
               className={`px-3 py-1 rounded-full border transition flex items-center gap-1.5 ${
                 recursoFiltro === r.id
                   ? "bg-svi-elevated text-svi-white"
                   : "border-svi-border-muted text-svi-muted hover:text-svi-white"
               }`}
-              style={
-                recursoFiltro === r.id
-                  ? { borderColor: r.color }
-                  : undefined
-              }
+              style={recursoFiltro === r.id ? { borderColor: r.color } : undefined}
             >
               <span
                 className="size-2 rounded-full"
@@ -149,8 +184,10 @@ export default async function AgendaPage({
 
       {recursos.length === 0 ? (
         <EmptyRecursos />
-      ) : (
+      ) : vista === "calendario" ? (
         <CalendarioSemanal lunes={lunes.toISOString()} turnos={turnos} />
+      ) : (
+        <KanbanTurnos turnos={turnos} />
       )}
     </div>
   );
