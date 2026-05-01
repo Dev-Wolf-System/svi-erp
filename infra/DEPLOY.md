@@ -2,7 +2,8 @@
 
 > Guía operativa para deployar SVI en el VPS Hostinger
 > (`srv878399.hstgr.cloud`) donde ya corren Supabase + N8N + Evolution API
-> + Traefik. Vigente al **2026-04-30** (post F5.7 + panel Evolution + F7 Agenda).
+> + Traefik. Vigente al **2026-05-01** (post F5.7 + panel Evolution + F7 Agenda
+> + F6.G capa IA transversal).
 
 ---
 
@@ -10,6 +11,7 @@
 
 1. [Arquitectura del deploy](#1-arquitectura-del-deploy)
 2. [Pre-requisitos en el VPS](#2-pre-requisitos-en-el-vps)
+2bis. [Redis dedicado SVI-ERP (F6.G+)](#redis-dedicado-svi-erp-f6g)
 3. [Primer deploy — paso a paso](#3-primer-deploy--paso-a-paso)
 4. [Configuración post-deploy](#4-configuración-post-deploy)
 5. [Validación end-to-end](#5-validación-end-to-end)
@@ -88,6 +90,77 @@ docker ps --filter "name=traefik" --format "{{.Names}}\t{{.Status}}"
 
 ---
 
+## Redis dedicado SVI-ERP (F6.G+)
+
+Stack independiente del Redis de Evolution API. Vive en `/opt/svi-erp/` con
+su propio `docker-compose.yml`. Lo usan la capa IA transversal (cache de
+prompts, sliding-window rate limit por usuario, hard stop por presupuesto
+mensual de tokens) y futuros módulos.
+
+### docker-compose.yml mínimo del stack
+
+```yaml
+services:
+  svi_redis:
+    image: redis:7.4-alpine
+    container_name: svi_redis
+    restart: always
+    ports:
+      - "6456:6379"
+    command:
+      - redis-server
+      - --requirepass
+      - ${SVI_REDIS_PASSWORD}
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+    volumes:
+      - svi_redis_data:/data
+    networks:
+      - svi_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${SVI_REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  svi_net:
+    name: svi_net
+    driver: bridge
+
+volumes:
+  svi_redis_data:
+    name: svi_redis_data
+```
+
+### .env del stack
+
+```
+SVI_REDIS_PASSWORD=<generar con: openssl rand -base64 32 | tr -d '/+=' | head -c 40>
+```
+
+### Connection string
+
+En `.env.local` / `.env.production` de la app:
+```
+REDIS_URL=redis://default:<password>@srv878399.hstgr.cloud:6456
+```
+
+### Hardening firewall
+
+Limitar acceso al puerto 6456 solo a IPs autorizadas:
+```bash
+sudo ufw allow from <IP_DEV> to any port 6456 proto tcp comment "SVI Redis dev"
+```
+
+---
+
 ## 3. Primer deploy — paso a paso
 
 ### 3.1. Clonar el repo
@@ -123,7 +196,9 @@ del archivo (es la doc inline). Mínimo a completar para arrancar:
 | N8N | `N8N_WEBHOOK_SECRET` | Generar `openssl rand -hex 32` y sincronizar con credential N8N (ver §4.3) |
 | Evolution | `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE_NAME` | URL = `https://evolution.srv878399.hstgr.cloud`, API_KEY del container Evolution, instance `SVI-ERP` |
 | Resend | `RESEND_API_KEY` | resend.com (necesario para SMTP del Supabase + emails transaccionales) |
-| IA | `ANTHROPIC_API_KEY` | console.anthropic.com (para F8+) |
+| IA Anthropic | `ANTHROPIC_API_KEY` | console.anthropic.com (reservado para agente WA F8+) |
+| IA OpenAI (F6.G+) | `OPENAI_API_KEY`, `OPENAI_DEFAULT_MODEL=gpt-5-mini`, `OPENAI_CHEAP_MODEL=gpt-5-nano`, `OPENAI_PREMIUM_MODEL=gpt-5`, `OPENAI_EMBEDDINGS_MODEL=text-embedding-3-small` | platform.openai.com (capa IA transversal: insights, anomalías, forecast, chat, embeddings) |
+| Redis SVI (F6.G+) | `REDIS_URL`, `AI_MONTHLY_BUDGET_USD=100`, `AI_RATE_LIMIT_PER_HOUR=100` | Stack `svi_redis` propio (ver sección dedicada arriba) |
 | Sentry | `SENTRY_DSN` | sentry.io (recomendado desde día 1) |
 
 **Atajo:** podés copiar tu `.secrets/.env.production` local (que ya tiene los
@@ -138,21 +213,25 @@ Y completás solo los `⚠️ TODO` que falten en el VPS.
 
 ### 3.3. Verificar migrations Supabase aplicadas
 
-Antes de levantar las apps, las 20 migrations tienen que estar aplicadas en
+Antes de levantar las apps, las 24 migrations tienen que estar aplicadas en
 la DB de producción.
 
 ```sql
 -- Studio → SQL Editor
 SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
 
--- Tablas que tienen que existir (al 2026-04-30):
+-- Tablas que tienen que existir (al 2026-05-01):
 --   agenda_recursos       ← F7 ✅
 --   agenda_disponibilidad ← F7 ✅
 --   agenda_bloqueos       ← F7 ✅
 --   agenda_turnos         ← F7 ✅
+--   ai_chat_sessions      ← F6.G ✅ (0022)
+--   ai_chat_messages      ← F6.G ✅ (0022)
+--   ai_token_usage        ← F6.G ✅ (0023)
+--   ai_embeddings         ← F6.G ✅ (0024 — requiere extensión vector)
 --   audit_log
 --   bancos
---   caja_*             ← F6 (todavía no, ignorar)
+--   caja_*             ← F6 base ✅
 --   clientes
 --   empresas
 --   inversiones
@@ -169,7 +248,14 @@ SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
 --   vehiculos
 --   ventas
 --   webhook_eventos
+
+-- Vista útil F6.G:
+--   ai_usage_current_month  (consumo de tokens del mes corriente por empresa)
 ```
+
+⚠️ La migration `0024_pgvector_embeddings.sql` requiere la extensión
+`vector`. Si no está disponible en el VPS, ver `supabase/SETUP.md` sección
+"Migraciones de capa IA (F6.G+)" para el procedimiento de instalación.
 
 Si alguna falta, copiar el SQL de `supabase/migrations/` y pegar en SQL Editor
 en orden. Detalle en `supabase/SETUP.md` §11.
@@ -528,7 +614,9 @@ Imprimible / pegable en un bloc de notas durante el deploy.
 │ □ DNS svi.srv878399.hstgr.cloud + svi-erp.srv878399 → IP VPS   │
 │ □ /root/svi-erp clonado y up to date                           │
 │ □ .env.production completo (sin TODO ⚠️ de bloque CRÍTICO)     │
-│ □ Migrations 0001-0020 aplicadas en Supabase                   │
+│ □ Migrations 0001-0024 aplicadas en Supabase (incl. 0022-0024) │
+│ □ Extensión pgvector disponible (req. para 0024)               │
+│ □ Stack svi_redis levantado y accesible (REDIS_URL)            │
 │ □ JWT hook activo (verificar en SQL: SELECT raw_app_meta_data) │
 │ □ Hardening Supabase aplicado (script + Studio Redirect URLs)  │
 ├─────────────────────────────────────────────────────────────────┤
@@ -570,7 +658,7 @@ Imprimible / pegable en un bloc de notas durante el deploy.
 | Env template | `/.env.production.example` | Referencia + checklist 8 pasos |
 | Hardening | `/infra/scripts/harden-supabase-self-hosted.sh` | SMTP + DISABLE_SIGNUP + redirect URLs |
 | Workflow N8N | `/docs/n8n/workflows/personal-svi-erp/01-liquidacion-mensual.json` | Source of truth del workflow F5.7 |
-| Migrations | `/supabase/migrations/` | DDL ordenado 0001 → 0020 |
+| Migrations | `/supabase/migrations/` | DDL ordenado 0001 → 0024 (incl. 0022-0024 capa IA) |
 | Setup Supabase | `/supabase/SETUP.md` | Hook JWT + buckets + webhooks |
 | Hardening doc | `/docs/PRODUCTION_HARDENING.md` | 16 secciones de cosas pre-prod |
 
@@ -599,5 +687,5 @@ find /root/backups -mtime +30 -type d -exec rm -rf {} +  # retención 30d
 
 ---
 
-*Última actualización: 2026-04-30 — post F5.7 + panel Evolution embebido.*
+*Última actualización: 2026-05-01 — post F6.G capa IA transversal (svi_redis + OpenAI + pgvector).*
 *Sincronizar este archivo con cada cambio operativo de deploy.*
