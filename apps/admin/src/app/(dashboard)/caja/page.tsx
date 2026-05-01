@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   Wallet, TrendingUp, TrendingDown, DollarSign, Plus,
-  ArrowUpCircle, ArrowDownCircle, Lock, Calendar, ArrowRight, Shield,
+  ArrowUpCircle, ArrowDownCircle, Lock, Calendar, ArrowRight, Shield, FileText,
 } from "lucide-react";
 import { can } from "@repo/utils";
 import { getSviClaims } from "@/lib/auth/claims";
@@ -162,6 +162,13 @@ export default async function CajaPage() {
           >
             Ver todos los movimientos
             <ArrowRight className="size-3.5" />
+          </Link>
+          <Link
+            href="/caja/reportes"
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-svi-border-muted text-sm text-svi-muted hover:text-svi-white hover:border-svi-gold transition"
+          >
+            <FileText className="size-4" />
+            Reportes
           </Link>
           {can("caja.view_global", claims.rol) && (
             <Link
