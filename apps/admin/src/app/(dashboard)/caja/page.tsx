@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   Wallet, TrendingUp, TrendingDown, DollarSign, Plus,
-  ArrowUpCircle, ArrowDownCircle, Lock, Calendar,
+  ArrowUpCircle, ArrowDownCircle, Lock, Calendar, ArrowRight,
 } from "lucide-react";
 import { can } from "@repo/utils";
 import { getSviClaims } from "@/lib/auth/claims";
@@ -155,15 +155,24 @@ export default async function CajaPage() {
             )}
           </p>
         </div>
-        {puedeRegistrar && !resumen.cerrado && (
+        <div className="flex items-center gap-2 shrink-0">
           <Link
-            href="/caja/movimientos/nuevo"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-svi-gold text-svi-black text-sm font-semibold hover:bg-svi-gold/90 transition shrink-0"
+            href="/caja/movimientos"
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-svi-border-muted text-sm text-svi-muted hover:text-svi-white hover:border-svi-gold transition"
           >
-            <Plus className="size-4" />
-            Registrar movimiento
+            Ver todos los movimientos
+            <ArrowRight className="size-3.5" />
           </Link>
-        )}
+          {puedeRegistrar && !resumen.cerrado && (
+            <Link
+              href="/caja/movimientos/nuevo"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-svi-gold text-svi-black text-sm font-semibold hover:bg-svi-gold/90 transition"
+            >
+              <Plus className="size-4" />
+              Registrar movimiento
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards con delta + sparkline */}
