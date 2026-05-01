@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen flex bg-svi-black">
-      <Sidebar />
+      <Sidebar rol={appMeta.rol} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar
           user={{

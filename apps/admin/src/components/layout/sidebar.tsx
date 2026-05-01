@@ -18,6 +18,8 @@ import {
   BarChart3,
   CalendarDays,
   Settings,
+  ClipboardList,
+  Users2,
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@repo/ui";
@@ -28,7 +30,11 @@ interface NavGroup {
   items: { href: string; label: string; icon: LucideIcon }[];
 }
 
-const navigation: NavGroup[] = [
+interface SidebarProps {
+  rol?: string;
+}
+
+const FULL_NAV: NavGroup[] = [
   {
     title: "Operación",
     items: [
@@ -56,15 +62,36 @@ const navigation: NavGroup[] = [
   },
 ];
 
-export function Sidebar() {
+const SECRETARIA_NAV: NavGroup[] = [
+  {
+    title: "Operación",
+    items: [
+      { href: "/secretaria", label: "Inicio", icon: LayoutDashboard },
+      { href: "/agenda", label: "Agenda", icon: CalendarDays },
+      { href: "/secretaria/asignaciones", label: "Asignaciones", icon: ClipboardList },
+      { href: "/secretaria/vendedores", label: "Vendedores", icon: Users2 },
+      { href: "/clientes", label: "Clientes", icon: Users },
+    ],
+  },
+];
+
+/** Función pura — retorna la nav correcta según el rol. */
+export function getNavByRol(rol: string | undefined): NavGroup[] {
+  if (rol === "secretaria") return SECRETARIA_NAV;
+  return FULL_NAV;
+}
+
+export function Sidebar({ rol }: SidebarProps) {
   const pathname = usePathname();
+  const navGroups = getNavByRol(rol);
+
   return (
     <aside
       className="hidden lg:flex flex-col w-64 shrink-0 border-r border-svi-border-muted bg-svi-dark"
       aria-label="Navegación principal"
     >
       <div className="px-6 h-16 flex items-center border-b border-svi-border-muted">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href={rol === "secretaria" ? "/secretaria" : "/dashboard"} className="flex items-center gap-2">
           <Logo size="md" />
           <span className="text-xs text-svi-muted-2 font-mono uppercase tracking-widest">
             Panel
@@ -73,7 +100,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-        {navigation.map((group) => (
+        {navGroups.map((group) => (
           <div key={group.title}>
             <h3 className="px-3 text-[10px] font-mono uppercase tracking-[0.25em] text-svi-muted-2 mb-2">
               {group.title}
