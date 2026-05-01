@@ -6,7 +6,7 @@ import {
   getRecursoById,
   getDisponibilidadDelRecurso,
   getBloqueosDelRecurso,
-} from "@/modules/agenda";
+} from "@/modules/agenda/queries";
 import { DisponibilidadSection } from "./disponibilidad-section";
 import { BloqueosSection } from "./bloqueos-section";
 

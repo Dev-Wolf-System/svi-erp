@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSviClaims } from "@/lib/auth/claims";
-import { getRecursos } from "@/modules/agenda";
+import { getRecursos } from "@/modules/agenda/queries";
 import { TurnoNuevoForm } from "./form";
 
 export const dynamic = "force-dynamic";

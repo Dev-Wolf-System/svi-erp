@@ -2,71 +2,15 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getSviClaims } from "@/lib/auth/claims";
 import type {
-  RecursoTipo,
+  Recurso,
+  DisponibilidadFranja,
+  Bloqueo,
+  Turno,
   TurnoEstado,
-  TurnoModalidad,
   PersonaTipo,
-  SlotMinutos,
 } from "./schemas";
 
-// ─── Tipos de salida (planos para que la UI los consuma sin parsear) ────────
-
-export type Recurso = {
-  id: string;
-  empresa_id: string;
-  sucursal_id: string | null;
-  tipo: RecursoTipo;
-  nombre: string;
-  usuario_id: string | null;
-  color: string;
-  activo: boolean;
-  notas: string | null;
-};
-
-export type DisponibilidadFranja = {
-  id: string;
-  recurso_id: string;
-  dia_semana: number; // 0 = domingo, 6 = sábado
-  hora_inicio: string; // "HH:MM:SS"
-  hora_fin: string;
-  slot_minutos: SlotMinutos;
-  vigente_desde: string | null;
-  vigente_hasta: string | null;
-};
-
-export type Bloqueo = {
-  id: string;
-  recurso_id: string;
-  desde: string;
-  hasta: string;
-  motivo: string | null;
-};
-
-export type Turno = {
-  id: string;
-  empresa_id: string;
-  recurso_id: string;
-  persona_tipo: PersonaTipo;
-  persona_id: string | null;
-  externo_nombre: string | null;
-  externo_telefono: string | null;
-  inicio: string;
-  fin: string;
-  estado: TurnoEstado;
-  modalidad: TurnoModalidad;
-  motivo: string;
-  notas: string | null;
-  creado_por: string;
-  external_ref: string | null;
-  cancelado_motivo: string | null;
-  cancelado_at: string | null;
-  cancelado_por: string | null;
-  created_at: string;
-  // Hidratado por joins
-  recurso_nombre: string | null;
-  recurso_color: string | null;
-  persona_label: string | null; // resuelto al join (cliente/inversor/lead/externo)
-};
+export type { Recurso, DisponibilidadFranja, Bloqueo, Turno };
 
 // ─── Queries ────────────────────────────────────────────────────────────────
 

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus, ArrowLeft, ChevronRight, UserCog, Users, Building2, Briefcase } from "lucide-react";
 import { getSviClaims } from "@/lib/auth/claims";
-import { getRecursos, type RecursoTipo } from "@/modules/agenda";
+import { getRecursos } from "@/modules/agenda/queries";
+import type { RecursoTipo } from "@/modules/agenda";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Recursos · Agenda · SVI" };

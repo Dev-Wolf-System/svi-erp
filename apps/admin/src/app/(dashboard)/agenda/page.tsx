@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, Plus, Settings2 } from "lucide-react";
 import { getSviClaims } from "@/lib/auth/claims";
-import { getRecursos, getTurnosRango } from "@/modules/agenda";
+import { getRecursos, getTurnosRango } from "@/modules/agenda/queries";
 import { CalendarioSemanal } from "./calendario-semanal";
 
 export const dynamic = "force-dynamic";
