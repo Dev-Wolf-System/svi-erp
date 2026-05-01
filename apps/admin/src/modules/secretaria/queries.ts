@@ -100,6 +100,7 @@ export async function getDashboardDia(): Promise<DashboardDiaData> {
     supabase
       .from("leads")
       .select("id", { count: "exact", head: true })
+      .eq("empresa_id", claims.empresa_id)
       .is("vendedor_id", null)
       .not("estado", "in", "(ganado,perdido)"),
   ]);
@@ -126,6 +127,7 @@ export async function getLeadsParaAsignacion(): Promise<LeadAsignacion> {
       .select(
         "id, nombre, email, telefono, mensaje, estado, vehiculo_interes, vendedor_id, sucursal_id, origen, created_at, updated_at",
       )
+      .eq("empresa_id", claims.empresa_id)
       .not("estado", "in", "(ganado,perdido)")
       .order("updated_at", { ascending: false }),
 
