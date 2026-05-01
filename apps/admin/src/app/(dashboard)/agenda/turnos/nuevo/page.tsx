@@ -3,16 +3,40 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSviClaims } from "@/lib/auth/claims";
 import { getRecursos } from "@/modules/agenda/queries";
+import type { PersonaTipo } from "@/modules/agenda";
 import { TurnoNuevoForm } from "./form";
+import { getPersonaLabel } from "./search-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Nuevo turno · Agenda · SVI" };
 
-export default async function NuevoTurnoPage() {
+const PERSONA_TIPOS_VALIDOS: PersonaTipo[] = ["cliente", "inversor", "lead", "externo"];
+
+export default async function NuevoTurnoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ persona_id?: string; persona_tipo?: string }>;
+}) {
   const claims = await getSviClaims();
   if (!claims) redirect("/login");
 
-  const recursos = await getRecursos({ soloActivos: true });
+  const [params, recursos] = await Promise.all([
+    searchParams,
+    getRecursos({ soloActivos: true }),
+  ]);
+
+  const rawTipo = params.persona_tipo ?? "externo";
+  const initialPersonaTipo: PersonaTipo = PERSONA_TIPOS_VALIDOS.includes(
+    rawTipo as PersonaTipo,
+  )
+    ? (rawTipo as PersonaTipo)
+    : "externo";
+  const initialPersonaId = params.persona_id ?? "";
+
+  const initialPersonaLabel =
+    initialPersonaId && initialPersonaTipo !== "externo"
+      ? ((await getPersonaLabel(initialPersonaTipo, initialPersonaId)) ?? "")
+      : "";
 
   return (
     <div className="container max-w-2xl py-6 space-y-6">
@@ -38,7 +62,12 @@ export default async function NuevoTurnoPage() {
           .
         </p>
       ) : (
-        <TurnoNuevoForm recursos={recursos} />
+        <TurnoNuevoForm
+          recursos={recursos}
+          initialPersonaId={initialPersonaId}
+          initialPersonaTipo={initialPersonaTipo}
+          initialPersonaLabel={initialPersonaLabel}
+        />
       )}
     </div>
   );

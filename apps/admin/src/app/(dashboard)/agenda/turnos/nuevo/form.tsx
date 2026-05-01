@@ -12,14 +12,28 @@ import {
   type Recurso,
   type TurnoModalidad,
 } from "@/modules/agenda";
+import { PersonaSelector } from "./persona-selector";
 
-export function TurnoNuevoForm({ recursos }: { recursos: Recurso[] }) {
+interface Props {
+  recursos: Recurso[];
+  initialPersonaId?: string;
+  initialPersonaTipo?: PersonaTipo;
+  initialPersonaLabel?: string;
+}
+
+export function TurnoNuevoForm({
+  recursos,
+  initialPersonaId = "",
+  initialPersonaTipo = "externo",
+  initialPersonaLabel = "",
+}: Props) {
   const router = useRouter();
   const firstRecurso = recursos[0];
   if (!firstRecurso) return null;
   const [recursoId, setRecursoId] = useState<string>(firstRecurso.id);
-  const [personaTipo, setPersonaTipo] = useState<PersonaTipo>("externo");
-  const [personaId, setPersonaId] = useState("");
+  const [personaTipo, setPersonaTipo] = useState<PersonaTipo>(initialPersonaTipo);
+  const [personaId, setPersonaId] = useState(initialPersonaId);
+  const [personaLabel, setPersonaLabel] = useState(initialPersonaLabel);
   const [externoNombre, setExternoNombre] = useState("");
   const [externoTelefono, setExternoTelefono] = useState("");
   const [inicioLocal, setInicioLocal] = useState("");
@@ -137,6 +151,7 @@ export function TurnoNuevoForm({ recursos }: { recursos: Recurso[] }) {
               onClick={() => {
                 setPersonaTipo(t);
                 setPersonaId("");
+                setPersonaLabel("");
               }}
               className={`text-xs px-3 py-1.5 rounded-md border transition capitalize ${
                 personaTipo === t
@@ -170,13 +185,14 @@ export function TurnoNuevoForm({ recursos }: { recursos: Recurso[] }) {
             />
           </div>
         ) : (
-          <input
-            type="text"
+          <PersonaSelector
+            tipo={personaTipo}
             value={personaId}
-            onChange={(e) => setPersonaId(e.target.value)}
-            placeholder={`UUID del ${personaTipo} (mejorar a selector en F8.5)`}
-            required
-            className="w-full px-3 py-2 rounded-lg bg-svi-elevated border border-svi-border-muted text-svi-white focus:border-svi-gold focus:outline-none placeholder:text-svi-muted-2 font-mono text-xs"
+            label={personaLabel}
+            onChange={(id, label) => {
+              setPersonaId(id);
+              setPersonaLabel(label);
+            }}
           />
         )}
       </div>
