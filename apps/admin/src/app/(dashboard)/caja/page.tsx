@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   Wallet, TrendingUp, TrendingDown, DollarSign, Plus,
-  ArrowUpCircle, ArrowDownCircle, Lock, Calendar, ArrowRight,
+  ArrowUpCircle, ArrowDownCircle, Lock, Calendar, ArrowRight, Shield,
 } from "lucide-react";
 import { can } from "@repo/utils";
 import { getSviClaims } from "@/lib/auth/claims";
@@ -163,6 +163,16 @@ export default async function CajaPage() {
             Ver todos los movimientos
             <ArrowRight className="size-3.5" />
           </Link>
+          {can("caja.view_global", claims.rol) && (
+            <Link
+              href="/caja/auditoria"
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-svi-border-muted text-sm text-svi-muted hover:text-svi-white hover:border-svi-gold transition"
+              title="Registro de auditoría"
+            >
+              <Shield className="size-4" />
+              Auditoría
+            </Link>
+          )}
           {puedeRegistrar && !resumen.cerrado && (
             <Link
               href="/caja/movimientos/nuevo"
