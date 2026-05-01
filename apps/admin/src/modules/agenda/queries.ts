@@ -33,10 +33,7 @@ export async function getRecursos(opts?: {
   if (opts?.soloActivos) q = q.eq("activo", true);
 
   const { data, error } = await q;
-  if (error) {
-    console.error("[getRecursos]", error.message);
-    return [];
-  }
+  if (error) return [];
   return (data ?? []) as Recurso[];
 }
 
@@ -55,10 +52,7 @@ export async function getRecursoById(id: string): Promise<Recurso | null> {
     .is("deleted_at", null)
     .maybeSingle();
 
-  if (error) {
-    console.error("[getRecursoById]", error.message);
-    return null;
-  }
+  if (error) return null;
   return data as Recurso | null;
 }
 
@@ -75,10 +69,7 @@ export async function getDisponibilidadDelRecurso(
     .order("dia_semana", { ascending: true })
     .order("hora_inicio", { ascending: true });
 
-  if (error) {
-    console.error("[getDisponibilidadDelRecurso]", error.message);
-    return [];
-  }
+  if (error) return [];
   return (data ?? []) as DisponibilidadFranja[];
 }
 
@@ -97,10 +88,7 @@ export async function getBloqueosDelRecurso(
   }
 
   const { data, error } = await q.order("desde");
-  if (error) {
-    console.error("[getBloqueosDelRecurso]", error.message);
-    return [];
-  }
+  if (error) return [];
   return (data ?? []) as Bloqueo[];
 }
 
@@ -151,10 +139,7 @@ export async function getTurnosRango(filters: {
   if (filters.estado) q = q.eq("estado", filters.estado);
 
   const { data, error } = await q;
-  if (error) {
-    console.error("[getTurnosRango]", error.message);
-    return [];
-  }
+  if (error) return [];
 
   type Row = Turno & {
     recurso?: { nombre: string; color: string } | { nombre: string; color: string }[] | null;
