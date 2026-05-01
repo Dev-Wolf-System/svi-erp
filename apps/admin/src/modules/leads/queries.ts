@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { getSviClaims } from "@/lib/auth/claims";
 import { LEAD_ESTADOS, type LeadEstado } from "./schemas";
 
 const LIST_COLUMNS = `
@@ -26,11 +27,14 @@ export interface LeadRow {
 export type LeadsByEstado = Record<LeadEstado, LeadRow[]>;
 
 export async function getLeads(): Promise<LeadsByEstado> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("leads")
-    .select(LIST_COLUMNS)
-    .order("updated_at", { ascending: false });
+  const [claims, supabase] = await Promise.all([getSviClaims(), createClient()]);
+  let q = supabase.from("leads").select(LIST_COLUMNS).order("updated_at", { ascending: false });
+
+  if (claims?.rol === "vendedor") {
+    q = q.eq("vendedor_id", claims.sub);
+  }
+
+  const { data, error } = await q;
 
   if (error) throw new Error(`getLeads: ${error.message}`);
 
@@ -50,10 +54,14 @@ export async function getLeads(): Promise<LeadsByEstado> {
 }
 
 export async function getLeadsCount(): Promise<number> {
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from("leads")
-    .select("id", { count: "exact", head: true });
+  const [claims, supabase] = await Promise.all([getSviClaims(), createClient()]);
+  let q = supabase.from("leads").select("id", { count: "exact", head: true });
+
+  if (claims?.rol === "vendedor") {
+    q = q.eq("vendedor_id", claims.sub);
+  }
+
+  const { count, error } = await q;
   if (error) throw new Error(`getLeadsCount: ${error.message}`);
   return count ?? 0;
 }

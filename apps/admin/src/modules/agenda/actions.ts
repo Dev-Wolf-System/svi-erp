@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSviClaims } from "@/lib/auth/claims";
+import { can } from "@repo/utils";
 import {
   recursoCreateSchema,
   recursoUpdateSchema,
@@ -11,6 +12,7 @@ import {
   turnoCreateSchema,
   turnoUpdateEstadoSchema,
   turnoReprogramarSchema,
+  turnoReasignarRecursoSchema,
   type RecursoCreateInput,
   type RecursoUpdateInput,
   type DisponibilidadCreateInput,
@@ -18,6 +20,7 @@ import {
   type TurnoCreateInput,
   type TurnoUpdateEstadoInput,
   type TurnoReprogramarInput,
+  type TurnoReasignarRecursoInput,
 } from "./schemas";
 
 type ActionResult<T = unknown> =
@@ -306,6 +309,37 @@ export async function reprogramarTurno(
         ok: false,
         error: "El nuevo horario choca con otro turno solicitado/confirmado.",
       };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/agenda");
+  return { ok: true, data: { id: parsed.data.id } };
+}
+
+export async function reasignarRecursoTurno(
+  input: TurnoReasignarRecursoInput,
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = turnoReasignarRecursoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Datos inválidos" };
+  }
+
+  const claims = await getSviClaims();
+  if (!claims) return { ok: false, error: "No autenticado" };
+  if (!can("agenda.gestionar_turno", claims.rol)) {
+    return { ok: false, error: "Sin permisos para reasignar turnos" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("agenda_turnos")
+    .update({ recurso_id: parsed.data.recurso_id })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "23P01") {
+      return { ok: false, error: "El nuevo recurso ya tiene un turno activo en ese horario." };
     }
     return { ok: false, error: error.message };
   }

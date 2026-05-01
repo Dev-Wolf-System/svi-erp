@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, Plus, Settings2, LayoutGrid } from "lucide-react";
+import { can } from "@repo/utils";
 import { getSviClaims } from "@/lib/auth/claims";
 import { getRecursos, getTurnosRango } from "@/modules/agenda/queries";
 import { CalendarioSemanal } from "./calendario-semanal";
@@ -35,6 +36,10 @@ export default async function AgendaPage({
 }) {
   const claims = await getSviClaims();
   if (!claims) redirect("/login");
+
+  const puedeCrearTurno = can("agenda.crear_turno", claims.rol);
+  const puedeGestionar = can("agenda.gestionar_turno", claims.rol);
+  const esVendedor = claims.rol === "vendedor";
 
   const sp = (await searchParams) ?? {};
   const semanaIso = sp.semana;
@@ -129,24 +134,28 @@ export default async function AgendaPage({
           >
             Siguiente →
           </Link>
-          <Link
-            href="/agenda/recursos"
-            className="text-xs px-3 py-1.5 rounded-md border border-svi-border-muted text-svi-muted hover:text-svi-white hover:bg-svi-elevated transition inline-flex items-center gap-1.5"
-          >
-            <Settings2 className="size-3.5" />
-            Recursos
-          </Link>
-          <Link
-            href="/agenda/turnos/nuevo"
-            className="text-xs px-3 py-1.5 rounded-md bg-svi-gold text-svi-black hover:opacity-90 transition inline-flex items-center gap-1.5 font-medium"
-          >
-            <Plus className="size-3.5" />
-            Nuevo turno
-          </Link>
+          {puedeGestionar && (
+            <Link
+              href="/agenda/recursos"
+              className="text-xs px-3 py-1.5 rounded-md border border-svi-border-muted text-svi-muted hover:text-svi-white hover:bg-svi-elevated transition inline-flex items-center gap-1.5"
+            >
+              <Settings2 className="size-3.5" />
+              Recursos
+            </Link>
+          )}
+          {puedeCrearTurno && (
+            <Link
+              href="/agenda/turnos/nuevo"
+              className="text-xs px-3 py-1.5 rounded-md bg-svi-gold text-svi-black hover:opacity-90 transition inline-flex items-center gap-1.5 font-medium"
+            >
+              <Plus className="size-3.5" />
+              Nuevo turno
+            </Link>
+          )}
         </div>
       </header>
 
-      {recursos.length > 0 && (
+      {recursos.length > 0 && !esVendedor && (
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <span className="text-svi-muted-2 font-mono uppercase tracking-wider">
             Filtrar por recurso:
@@ -187,7 +196,7 @@ export default async function AgendaPage({
       ) : vista === "calendario" ? (
         <CalendarioSemanal lunes={lunes.toISOString()} turnos={turnos} />
       ) : (
-        <KanbanTurnos turnos={turnos} />
+        <KanbanTurnos turnos={turnos} recursos={recursos} puedeGestionar={puedeGestionar} />
       )}
     </div>
   );

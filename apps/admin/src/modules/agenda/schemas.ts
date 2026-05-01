@@ -134,9 +134,15 @@ export const turnoReprogramarSchema = z
     path: ["fin"],
   });
 
+export const turnoReasignarRecursoSchema = z.object({
+  id: z.string().uuid(),
+  recurso_id: z.string().uuid(),
+});
+
 export type TurnoCreateInput = z.infer<typeof turnoCreateSchema>;
 export type TurnoUpdateEstadoInput = z.infer<typeof turnoUpdateEstadoSchema>;
 export type TurnoReprogramarInput = z.infer<typeof turnoReprogramarSchema>;
+export type TurnoReasignarRecursoInput = z.infer<typeof turnoReasignarRecursoSchema>;
 
 // ─── Tipos de salida (usados por UI y queries) ──────────────────────────────
 

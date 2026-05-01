@@ -134,6 +134,19 @@ export async function getTurnosRango(filters: {
     .lt("inicio", filters.hasta)
     .order("inicio");
 
+  // Vendedor solo ve sus propios turnos (recursos vinculados a su usuario_id)
+  if (claims.rol === "vendedor") {
+    const { data: misRecursos } = await supabase
+      .from("agenda_recursos")
+      .select("id")
+      .eq("empresa_id", claims.empresa_id)
+      .eq("usuario_id", claims.sub)
+      .is("deleted_at", null);
+    const ids = (misRecursos ?? []).map((r: { id: string }) => r.id);
+    if (ids.length === 0) return [];
+    q = q.in("recurso_id", ids);
+  }
+
   if (filters.recurso_id) q = q.eq("recurso_id", filters.recurso_id);
   if (filters.estado) q = q.eq("estado", filters.estado);
 

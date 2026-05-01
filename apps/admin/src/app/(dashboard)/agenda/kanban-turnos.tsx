@@ -1,4 +1,4 @@
-import type { Turno } from "@/modules/agenda/schemas";
+import type { Recurso, Turno } from "@/modules/agenda/schemas";
 import { TurnoKanbanCard } from "./turno-kanban-card";
 
 const COLUMNAS = [
@@ -34,9 +34,11 @@ const COLUMNAS = [
 
 interface Props {
   turnos: Turno[];
+  recursos: Recurso[];
+  puedeGestionar: boolean;
 }
 
-export function KanbanTurnos({ turnos }: Props) {
+export function KanbanTurnos({ turnos, recursos, puedeGestionar }: Props) {
   const byEstado: Record<string, Turno[]> = {
     solicitado: [],
     confirmado: [],
@@ -52,7 +54,6 @@ export function KanbanTurnos({ turnos }: Props) {
     }
   }
 
-  // Ordenar cada columna por fecha de inicio ascendente
   for (const key of Object.keys(byEstado)) {
     (byEstado[key] as Turno[]).sort((a, b) => a.inicio.localeCompare(b.inicio));
   }
@@ -85,7 +86,12 @@ export function KanbanTurnos({ turnos }: Props) {
             ) : (
               <div className="space-y-2">
                 {items.map((t) => (
-                  <TurnoKanbanCard key={t.id} turno={t} />
+                  <TurnoKanbanCard
+                    key={t.id}
+                    turno={t}
+                    recursos={recursos}
+                    puedeGestionar={puedeGestionar}
+                  />
                 ))}
               </div>
             )}
