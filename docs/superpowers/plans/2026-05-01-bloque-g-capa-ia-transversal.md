@@ -4,9 +4,9 @@
 
 **Goal:** Construir la capa de IA transversal del ERP SVI (módulo `ai/` + endpoints `/api/ai/*` + componentes reutilizables `<AiInsightsWidget>`, `<AiAnomalyBadge>`, `<AiSuggestInput>`, `<AiForecastChart>`, `<AiChatFloating>`) lista para ser consumida por todos los módulos del sistema (Caja, Ventas, Inversiones, etc.).
 
-**Architecture:** OpenAI como LLM provider (gpt-5-mini default, gpt-5-nano para alta frecuencia, gpt-5 para reportes premium, text-embedding-3-small para búsqueda semántica). Cache + rate limiting con Upstash Redis. Vector DB con pgvector embebido en Supabase. Audit log de tokens consumidos. RBAC + RLS estrictos. Streaming SSE para chat conversacional. Componentes React reutilizables con prop `moduleKey` para context-awareness.
+**Architecture:** OpenAI como LLM provider (gpt-5-mini default, gpt-5-nano para alta frecuencia, gpt-5 para reportes premium, text-embedding-3-small para búsqueda semántica). Cache + rate limiting con Redis self-hosted en VPS (cliente `ioredis`, sin Upstash). Vector DB con pgvector embebido en Supabase. Audit log de tokens consumidos. RBAC + RLS estrictos. Streaming SSE para chat conversacional. Componentes React reutilizables con prop `moduleKey` para context-awareness.
 
-**Tech Stack:** Next.js 15 (App Router) · React 19 · TypeScript 5.9 · Supabase Postgres + pgvector · OpenAI Node SDK 4.x · @upstash/redis + @upstash/ratelimit · Zod · React Query · Sonner · Tailwind 4 · lucide-react
+**Tech Stack:** Next.js 15 (App Router) · React 19 · TypeScript 5.9 · Supabase Postgres + pgvector · OpenAI Node SDK 4.x · ioredis 5.x (Redis VPS dedicado) · Zod · React Query · Sonner · Tailwind 4 · lucide-react
 
 **Spec referencia:** `docs/superpowers/specs/2026-05-01-f6-caja-ia-transversal-design.md` secciones 4, 5, 8.1, 9, 10, 11.
 
@@ -23,9 +23,9 @@
 
 ### Módulo `apps/admin/src/modules/ai/`
 - `client.ts` — wrapper OpenAI con selector de modelo (mini/nano/full) + helpers
-- `rate-limit.ts` — Upstash rate limiter por usuario y endpoint
+- `rate-limit.ts` — sliding window ZSET por usuario y endpoint (ioredis)
 - `audit.ts` — logging de tokens consumidos a `ai_token_usage`
-- `cache.ts` — wrapper Upstash Redis con get/set/del tipados
+- `cache.ts` — wrapper ioredis con get/set/del tipados (JSON auto)
 - `redact.ts` — sanitización de PII antes de enviar a OpenAI
 - `schemas.ts` — Zod schemas para inputs/outputs de TODOS los endpoints
 - `insights.ts` — generación de insights con cache 24h
@@ -56,8 +56,8 @@
 - `ai-chat-floating.tsx` — `<AiChatFloating />` (montado en topbar)
 
 ### Modificaciones
-- `apps/admin/.env.example` — agregar variables OpenAI + Upstash
-- `apps/admin/package.json` — deps: `openai`, `@upstash/redis`, `@upstash/ratelimit`
+- `apps/admin/.env.example` — agregar variables OpenAI + REDIS_URL
+- `apps/admin/package.json` — deps: `openai`, `ioredis`
 - `apps/admin/src/components/layout/topbar.tsx` — botón asistente flotante
 - `packages/utils/src/auth/permissions.ts` — agregar permisos `ia.*`
 
@@ -65,8 +65,8 @@
 
 ## Pre-requisitos (validar antes de Task 1)
 
-- [ ] `OPENAI_API_KEY` provista por cliente y con saldo disponible
-- [ ] Cuenta Upstash creada → `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` obtenidos
+- [x] `OPENAI_API_KEY` provista por cliente y con saldo disponible (cargada en `apps/admin/.env.local`)
+- [x] Redis VPS dedicado (`srv878399.hstgr.cloud:6456`) — `REDIS_URL` cargado en `.env.local`, puerto reachable desde dev local
 - [ ] Supabase self-hosted con extensión `vector` instalable (verificar con `SELECT * FROM pg_available_extensions WHERE name = 'vector'`)
 - [ ] Sucursales y empresa demo cargadas en DB para poder hacer smoke tests
 
@@ -78,21 +78,21 @@
 - Modify: `apps/admin/package.json`
 - Modify: `apps/admin/.env.example`
 
-- [ ] **Step 1: Instalar dependencias OpenAI + Upstash**
+- [ ] **Step 1: Instalar dependencias OpenAI + ioredis**
 
 ```bash
-cd /mnt/d/Proyectos-Dev/svi-erp/apps/admin && npm install openai@^4.77.0 @upstash/redis@^1.34.3 @upstash/ratelimit@^2.0.5
+cd /mnt/d/Proyectos-Dev/svi-erp/apps/admin && npm install openai@^4.77.0 ioredis@^5.4.1
 ```
 
-Expected: `package.json` actualizado con las 3 dependencias, `node_modules` actualizado, sin errores de peer deps.
+Expected: `package.json` actualizado con las 2 dependencias, `node_modules` actualizado, sin errores de peer deps.
 
 - [ ] **Step 2: Verificar instalación**
 
 ```bash
-cd /mnt/d/Proyectos-Dev/svi-erp && grep -E "openai|@upstash/redis|@upstash/ratelimit" apps/admin/package.json
+cd /mnt/d/Proyectos-Dev/svi-erp && grep -E "\"openai\"|\"ioredis\"" apps/admin/package.json
 ```
 
-Expected: las 3 entradas listadas en `dependencies`.
+Expected: las 2 entradas listadas en `dependencies`.
 
 - [ ] **Step 3: Agregar variables de entorno al `.env.example`**
 
@@ -107,9 +107,10 @@ OPENAI_CHEAP_MODEL=gpt-5-nano
 OPENAI_PREMIUM_MODEL=gpt-5
 OPENAI_EMBEDDINGS_MODEL=text-embedding-3-small
 
-# ─── Cache / Rate Limit (Upstash Redis) ──────────────────────────────────────
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
+# ─── Cache / Rate Limit (Redis self-hosted) ──────────────────────────────────
+# Formato: redis://[user:password@]host:port[/db]
+# Para TLS usar rediss:// (doble s)
+REDIS_URL=
 
 # ─── IA — controles ──────────────────────────────────────────────────────────
 # Hard cap mensual por empresa (USD) — alerta a $50 si <100, hard stop al valor
@@ -121,16 +122,16 @@ AI_RATE_LIMIT_PER_HOUR=100
 - [ ] **Step 4: Validar que `.env.local` tenga las variables reales**
 
 ```bash
-grep -E "OPENAI_API_KEY|UPSTASH_REDIS" /mnt/d/Proyectos-Dev/svi-erp/apps/admin/.env.local 2>/dev/null | wc -l
+grep -E "OPENAI_API_KEY|REDIS_URL" /mnt/d/Proyectos-Dev/svi-erp/apps/admin/.env.local 2>/dev/null | wc -l
 ```
 
-Expected: `>= 3`. Si es 0, pedir al usuario que complete `.env.local` con valores reales antes de continuar.
+Expected: `>= 2`. Si es 0, pedir al usuario que complete `.env.local` con valores reales antes de continuar.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/admin/package.json apps/admin/.env.example apps/admin/package-lock.json 2>/dev/null || git add apps/admin/package.json apps/admin/.env.example
-git commit -m "chore(F6.G): deps openai + @upstash/redis + ratelimit + env template"
+git commit -m "chore(F6.G): deps openai + ioredis + env template"
 ```
 
 ---
@@ -658,7 +659,7 @@ git commit -m "feat(F6.G): modules/ai/client.ts — wrapper OpenAI con selector 
 
 ---
 
-## Task 7: `modules/ai/cache.ts` — wrapper Upstash Redis
+## Task 7: `modules/ai/cache.ts` — wrapper ioredis
 
 **Files:**
 - Create: `apps/admin/src/modules/ai/cache.ts`
@@ -669,18 +670,25 @@ Create `apps/admin/src/modules/ai/cache.ts`:
 
 ```typescript
 import "server-only";
-import { Redis } from "@upstash/redis";
+import IORedis, { type Redis as RedisClient } from "ioredis";
 
-let _redis: Redis | null = null;
+let _redis: RedisClient | null = null;
 
-export function getRedis(): Redis {
+export function getRedis(): RedisClient {
   if (_redis) return _redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) {
-    throw new Error("UPSTASH_REDIS_REST_URL/TOKEN no configurados");
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    throw new Error("REDIS_URL no configurada");
   }
-  _redis = new Redis({ url, token });
+  _redis = new IORedis(url, {
+    maxRetriesPerRequest: 2,
+    enableReadyCheck: true,
+    lazyConnect: false,
+    keyPrefix: "svi:",
+    retryStrategy: (times) => Math.min(times * 200, 2000),
+  });
+  // Silenciar errores no críticos — el fail-open en cacheGet/cacheSet maneja
+  _redis.on("error", () => { /* swallow — cacheGet/cacheSet manejan */ });
   return _redis;
 }
 
@@ -700,8 +708,9 @@ export const TTL = {
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {
     const redis = getRedis();
-    const v = await redis.get<T>(key);
-    return v ?? null;
+    const raw = await redis.get(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
   } catch {
     return null; // si Redis está caído, no rompemos la app — saltamos cache
   }
@@ -711,13 +720,13 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 export async function cacheSet<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
   try {
     const redis = getRedis();
-    await redis.set(key, value, { ex: ttlSeconds });
+    await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
   } catch {
     /* ignore */
   }
 }
 
-/** Invalida una clave o un patrón con prefijo. */
+/** Invalida una clave. */
 export async function cacheDel(key: string): Promise<void> {
   try {
     const redis = getRedis();
@@ -745,77 +754,108 @@ Expected: sin errores.
 
 ```bash
 git add apps/admin/src/modules/ai/cache.ts
-git commit -m "feat(F6.G): modules/ai/cache.ts — wrapper Upstash Redis con TTL estándar"
+git commit -m "feat(F6.G): modules/ai/cache.ts — wrapper ioredis con TTL + fail-open"
 ```
 
 ---
 
-## Task 8: `modules/ai/rate-limit.ts` — rate limiter por usuario
+## Task 8: `modules/ai/rate-limit.ts` — rate limiter sliding window con ioredis
 
 **Files:**
 - Create: `apps/admin/src/modules/ai/rate-limit.ts`
 
-- [ ] **Step 1: Crear rate limiter**
+- [ ] **Step 1: Crear rate limiter con sliding window vía ZSET**
 
 Create `apps/admin/src/modules/ai/rate-limit.ts`:
 
 ```typescript
 import "server-only";
-import { Ratelimit } from "@upstash/ratelimit";
+import { randomBytes } from "node:crypto";
 import { getRedis } from "./cache";
 
-let _limiterStandard: Ratelimit | null = null;
-let _limiterChat: Ratelimit | null = null;
-
-function getStandardLimiter(): Ratelimit {
-  if (_limiterStandard) return _limiterStandard;
-  const max = Number(process.env.AI_RATE_LIMIT_PER_HOUR ?? 100);
-  _limiterStandard = new Ratelimit({
-    redis: getRedis(),
-    limiter: Ratelimit.slidingWindow(max, "1 h"),
-    prefix: "ai_rl",
-  });
-  return _limiterStandard;
+interface WindowConfig {
+  max:        number;  // requests máximos
+  windowMs:   number;  // ventana en ms
 }
 
-function getChatLimiter(): Ratelimit {
-  // chat es más permisivo: 30 mensajes / 5min
-  if (_limiterChat) return _limiterChat;
-  _limiterChat = new Ratelimit({
-    redis: getRedis(),
-    limiter: Ratelimit.slidingWindow(30, "5 m"),
-    prefix: "ai_rl_chat",
-  });
-  return _limiterChat;
+function configFor(endpoint: string): WindowConfig {
+  if (endpoint === "chat") {
+    // Chat más permisivo: 30 mensajes / 5 min
+    return { max: 30, windowMs: 5 * 60 * 1000 };
+  }
+  const hourly = Number(process.env.AI_RATE_LIMIT_PER_HOUR ?? 100);
+  return { max: hourly, windowMs: 60 * 60 * 1000 };
 }
 
 export interface RateLimitResult {
-  ok: boolean;
+  ok:        boolean;
   remaining: number;
-  resetAt: number; // ms timestamp
+  resetAt:   number; // ms timestamp
 }
 
 /**
- * Verifica el rate limit por usuario+endpoint.
- * Devuelve `{ ok: false }` cuando se superó el límite.
- * Si Upstash está caído, devuelve `{ ok: true }` (fail-open) — no rompe app.
+ * Sliding window rate limiter usando Redis ZSET.
+ *
+ * Algoritmo:
+ *   1. Remover entradas más viejas que (now - windowMs)
+ *   2. Contar entradas restantes
+ *   3. Si count < max, agregar entrada nueva con score=now
+ *   4. Setear EXPIRE para limpieza automática si el usuario deja de venir
+ *
+ * Atomicidad garantizada por pipeline (los pasos van en orden, sin race
+ * condition crítica para nuestro caso — pequeña inexactitud aceptable).
+ *
+ * Fail-open: si Redis está caído, devolvemos { ok: true } — preferimos
+ * dejar pasar requests que romper la app por un cache caído.
  */
 export async function checkRateLimit(
   userId: string,
   endpoint: string,
 ): Promise<RateLimitResult> {
+  const cfg = configFor(endpoint);
+  const now = Date.now();
+  const cutoff = now - cfg.windowMs;
+  const key = `ai_rl:${endpoint}:${userId}`;
+  const member = `${now}-${randomBytes(4).toString("hex")}`;
+
   try {
-    const limiter = endpoint === "chat" ? getChatLimiter() : getStandardLimiter();
-    const key = `${userId}:${endpoint}`;
-    const result = await limiter.limit(key);
+    const redis = getRedis();
+    const pipeline = redis.pipeline();
+    pipeline.zremrangebyscore(key, 0, cutoff);
+    pipeline.zcard(key);
+    pipeline.zadd(key, now, member);
+    pipeline.pexpire(key, cfg.windowMs + 1000);
+    const results = await pipeline.exec();
+
+    if (!results) {
+      return { ok: true, remaining: cfg.max, resetAt: now + cfg.windowMs };
+    }
+
+    // results[1] = [error, count] tras zcard (count ANTES del zadd actual)
+    const countBefore = Number(results[1]?.[1] ?? 0);
+    const usedAfter = countBefore + 1;
+
+    if (usedAfter > cfg.max) {
+      // Excede — quitar la entrada que acabamos de agregar
+      await redis.zrem(key, member);
+      // resetAt = score más antiguo + windowMs
+      const oldest = await redis.zrange(key, 0, 0, "WITHSCORES");
+      const oldestScore = oldest?.[1] ? Number(oldest[1]) : now;
+      return {
+        ok:        false,
+        remaining: 0,
+        resetAt:   oldestScore + cfg.windowMs,
+      };
+    }
+
     return {
-      ok: result.success,
-      remaining: result.remaining,
-      resetAt: result.reset,
+      ok:        true,
+      remaining: Math.max(0, cfg.max - usedAfter),
+      resetAt:   now + cfg.windowMs,
     };
   } catch {
     // fail-open: no bloqueamos si Redis cayó
-    return { ok: true, remaining: 999, resetAt: Date.now() + 3600_000 };
+    return { ok: true, remaining: cfg.max, resetAt: now + cfg.windowMs };
   }
 }
 ```
@@ -832,7 +872,7 @@ Expected: sin errores.
 
 ```bash
 git add apps/admin/src/modules/ai/rate-limit.ts
-git commit -m "feat(F6.G): modules/ai/rate-limit.ts — Upstash sliding window por usuario"
+git commit -m "feat(F6.G): modules/ai/rate-limit.ts — sliding window ZSET ioredis + fail-open"
 ```
 
 ---
@@ -4014,8 +4054,8 @@ git commit -m "feat(F6.G): cierre Bloque G — capa IA transversal verificada en
 - `ai-insights-widget.tsx`, `ai-anomaly-badge.tsx`, `ai-suggest-input.tsx`, `ai-narrative-block.tsx`, `ai-forecast-chart.tsx`, `ai-chat-floating.tsx`
 
 **Modificaciones:**
-- `apps/admin/package.json` (deps: openai, @upstash/redis, @upstash/ratelimit, recharts)
-- `apps/admin/.env.example` (variables IA + Upstash)
+- `apps/admin/package.json` (deps: openai, ioredis, recharts)
+- `apps/admin/.env.example` (variables IA + REDIS_URL)
 - `apps/admin/src/app/(dashboard)/layout.tsx` (montaje del chat flotante)
 - `packages/utils/src/auth/permissions.ts` (permisos `ia.*`)
 

@@ -67,7 +67,7 @@ Capa global:
 | **LLM premium** | OpenAI `gpt-5` | Uso esporádico: reportes ejecutivos mensuales, análisis cross-módulo. |
 | **Embeddings** | OpenAI `text-embedding-3-small` | Búsqueda semántica, ~$0.02 / millón tokens. |
 | **Vector DB** | pgvector en Supabase | Sin servicio externo, RLS funciona igual. |
-| **Cache** | Redis (Upstash) | Insights cache 24h, rate limiting por usuario. |
+| **Cache** | Redis self-hosted en VPS (cliente `ioredis`) | Insights cache 24h, rate limiting por usuario, sliding window con ZSET. |
 | **Orquestación cron** | n8n (ya en infra) | Insights diarios, reportes mensuales, alertas WhatsApp. |
 | **Notificaciones** | Evolution API (WhatsApp) + Resend (email) | Ya integrado. |
 
@@ -81,9 +81,8 @@ OPENAI_CHEAP_MODEL=gpt-5-nano
 OPENAI_PREMIUM_MODEL=gpt-5
 OPENAI_EMBEDDINGS_MODEL=text-embedding-3-small
 
-# Redis (Upstash)
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
+# Redis (self-hosted en VPS)
+REDIS_URL=redis://default:PASSWORD@host:port
 
 # Existentes (ya configurados)
 N8N_WEBHOOK_SECRET=
