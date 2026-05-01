@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSviClaims } from "@/lib/auth/claims";
+import { assertCan } from "@repo/utils";
 import {
   leadCreateSchema,
   leadUpdateEstadoSchema,
@@ -80,7 +81,6 @@ export async function asignarVendedor(
   const claims = await getSviClaims();
   if (!claims) return { ok: false, error: "No autenticado" };
 
-  const { assertCan } = await import("@repo/utils");
   try {
     assertCan("leads.assign", claims.rol);
   } catch {
