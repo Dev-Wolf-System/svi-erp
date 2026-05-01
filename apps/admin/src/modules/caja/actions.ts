@@ -11,6 +11,7 @@ import {
   type CierreCreateInput,
 } from "./schemas";
 import { getMovimientosDia, artFecha } from "./queries";
+import { logEvent } from "@/modules/auditoria/log";
 
 type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -59,6 +60,7 @@ export async function registrarMovimiento(
 
 export async function anularMovimiento(
   id: string,
+  motivo?: string,
 ): Promise<ActionResult<{ id: string }>> {
   const claims = await getSviClaims();
   if (!claims) return { ok: false, error: "No autenticado" };
@@ -68,23 +70,42 @@ export async function anularMovimiento(
 
   const supabase = await createClient();
 
-  // No permitir anular si ya tiene cierre
-  const { data: mov } = await supabase
+  // Snapshot completo antes del UPDATE (para datosAnteriores en audit semántico)
+  const { data: movCompleto } = await supabase
     .from("movimientos_caja")
-    .select("cierre_id")
+    .select("*")
     .eq("id", id)
     .single();
 
-  if (mov?.cierre_id) {
+  if (movCompleto?.cierre_id) {
     return { ok: false, error: "El movimiento pertenece a un cierre cerrado y no puede anularse" };
   }
 
+  const ahora = new Date().toISOString();
+  const motivoTrim = motivo?.trim() ? motivo.trim() : null;
+
   const { error } = await supabase
     .from("movimientos_caja")
-    .update({ deleted_at: new Date().toISOString() })
+    .update({
+      deleted_at:       ahora,
+      anulado_at:       ahora,
+      anulado_por:      claims.sub,
+      motivo_anulacion: motivoTrim,
+    })
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };
+
+  // Evento semántico: el trigger genérico ya capturó el UPDATE en audit_log,
+  // pero esto agrega la action="anular_con_motivo" + motivo en metadata para
+  // queries fáciles desde la UI de auditoría.
+  await logEvent({
+    tabla:           "movimientos_caja",
+    registroId:      id,
+    action:          "anular_con_motivo",
+    metadata:        { motivo: motivoTrim },
+    datosAnteriores: movCompleto ?? null,
+  });
 
   revalidatePath("/caja");
   return { ok: true, data: { id } };
