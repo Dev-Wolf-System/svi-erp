@@ -121,6 +121,12 @@ export function CalendarioSemanal({
     // Skip if no real change
     if (newInicio === turno.inicio) return;
 
+    // Validate client-side before touching the server
+    if (overlapsExisting(effectiveTurnos, turno.id, turno.recurso_id, newInicio, newFin)) {
+      toast.error("El horario choca con otro turno activo en ese recurso");
+      return;
+    }
+
     // Optimistic update for instant visual feedback
     setOptimisticOverrides((prev) => new Map(prev).set(turno.id, { inicio: newInicio, fin: newFin }));
 
@@ -338,6 +344,28 @@ function TurnoBlockOverlay({ turno }: { turno: Turno }) {
 
 function fmt(d: Date) {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+// Devuelve true si el intervalo [newInicio, newFin) choca con algún turno activo
+// del mismo recurso (excluyendo el turno que se está moviendo).
+// Replica la condición del EXCLUDE constraint: solo aplica a solicitado/confirmado.
+function overlapsExisting(
+  turnos: Turno[],
+  draggingId: string,
+  recursoId: string,
+  newInicio: string,
+  newFin: string,
+): boolean {
+  const a = new Date(newInicio).getTime();
+  const b = new Date(newFin).getTime();
+  return turnos.some((t) => {
+    if (t.id === draggingId) return false;
+    if (t.recurso_id !== recursoId) return false;
+    if (t.estado !== "solicitado" && t.estado !== "confirmado") return false;
+    const ta = new Date(t.inicio).getTime();
+    const tb = new Date(t.fin).getTime();
+    return ta < b && a < tb;
+  });
 }
 
 function EstadoTag({ estado }: { estado: Turno["estado"] }) {
