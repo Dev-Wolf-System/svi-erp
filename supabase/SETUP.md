@@ -277,7 +277,7 @@ y `createSignedUrl(60*60)` para servir. Path versionado e inmutable:
 
 ---
 
-## 11. Migrations aplicadas (al 2026-04-28)
+## 11. Migrations aplicadas (al 2026-05-01)
 
 ```
 0001_extensions_and_enums.sql       ✅
@@ -300,7 +300,33 @@ y `createSignedUrl(60*60)` para servir. Path versionado e inmutable:
 0018_liquidaciones_recibo_y_modo.sql ✅ (F5.4.1 — modo retirar/reinvertir + recibo PDF)
 0019_inversion_aportes.sql          ✅  (F5.4.3 — aportes adicionales del inversor)
 0020_solicitudes_aporte_y_modo_solicitado.sql ✅ (F5.6 — portal extranet inversor)
+0021_agenda.sql                     ✅  (F7.1 — recursos + disponibilidad + bloqueos + turnos + pg_notify)
+0022_ai_chat_sessions.sql           ✅  (F6.G — sesiones + mensajes chat IA con RLS, enum ai_chat_role, trigger touch)
+0023_ai_token_usage.sql             ✅  (F6.G — tracking de costos OpenAI + vista ai_usage_current_month)
+0024_pgvector_embeddings.sql        ✅  (F6.G — extensión vector + ai_embeddings (1536 dims) + RPC ai_search_similar KNN cosine)
 ```
+
+### Migraciones de capa IA (F6.G+)
+
+Aplicar en este orden vía SQL Editor:
+
+- **`0022_ai_chat_sessions.sql`** — sesiones + mensajes de chat IA con RLS por user/empresa
+- **`0023_ai_token_usage.sql`** — auditoría de costos OpenAI + vista `ai_usage_current_month`
+- **`0024_pgvector_embeddings.sql`** — extensión `vector` + tabla `ai_embeddings` (1536 dims) + RPC `ai_search_similar` (KNN cosine)
+
+⚠️ Antes de aplicar 0024, verificá que pgvector esté disponible:
+```sql
+SELECT * FROM pg_available_extensions WHERE name = 'vector';
+```
+
+Si no devuelve fila, instalalo en el VPS:
+```bash
+docker exec supabase-db apt update
+docker exec supabase-db apt install -y postgresql-15-pgvector
+docker compose restart db
+```
+
+Después la migration 0024 corre limpia.
 
 ---
 
