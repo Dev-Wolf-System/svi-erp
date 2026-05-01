@@ -1,7 +1,7 @@
 # 🏎️ ROADMAP DE DESARROLLO — SVI ERP/CRM
 
-**Estado:** 🟢 En desarrollo activo
-**Fase actual:** F7 🟡 Agenda — base + secretaria + kanban + selector persona completos; pendiente F7.5-F7.7 + F6 Caja + F8 Agente IA
+**Estado:** 🟢 En desarrollo activo · F6.G capa IA transversal completada
+**Fase actual:** F6 🟡 Caja base + capa IA transversal completas; pendientes F6.A-F6.F (dashboards IA por bloque) + F7.5-F7.7
 **Última actualización:** 2026-05-01
 
 > Plan completo: `SVI_PLAN_MAESTRO_DEFINITIVO.md` v2.1
@@ -28,7 +28,15 @@
 | **FASE 5.5** | Contrato PDF FCI con hash + QR | ✅ **Completo** | Bucket contratos-fci + página /vi/[numero] |
 | **FASE 5.6** | Portal extranet inversor + admin solicitudes | ✅ **Completo** | apps/web/portal/inversor + módulo solicitudes-aporte |
 | **FASE 5.7** | N8N workflow liquidación mensual | ✅ **Completo** | Endpoint webhook + workflow N8N + destinatarios desde Supabase + panel Evolution en admin |
-| FASE 6 | Caja + cierres diarios | ⚪ Pendiente | |
+| FASE 6 | Caja + cierres diarios + capa IA | 🟡 En progreso — capa IA transversal G ✅, faltan bloques A-F | |
+| **F6 — Caja** | base | ✅ **Completo** | módulo + UI dashboard + cierre día (commit 1a28d43) |
+| F6.G | **Capa IA Transversal** | ✅ **Completo** | 3 migrations + módulo ai/ + 7 endpoints + 6 componentes + asistente flotante (commit e78418b) |
+| F6.A | Dashboard Caja con IA | ⚪ Pendiente | gráficos + AiInsightsWidget + forecast |
+| F6.B | Filtros + búsqueda semántica | ⚪ Pendiente | range picker + embeddings |
+| F6.C | Multi-moneda + multi-sucursal | ⚪ Pendiente | TC histórico, vista global |
+| F6.D | Reportes con narrativa IA | ⚪ Pendiente | PDF arqueo + cierre mensual |
+| F6.E | Auditoría + seguridad | ⚪ Pendiente | auditoria_log transversal |
+| F6.F | UX inteligente | ⚪ Pendiente | categorización auto + duplicados |
 | **FASE 7.1–7.3** | **Agenda del owner** — migration + módulo + UI calendario | ✅ **Completo** | Migration 0021 + módulo + calendario semanal + CRUD recursos |
 | **FASE 7.4** | **Selector persona en turno** | ✅ **Completo** | Combobox debounced; pre-selección desde /secretaria/asignaciones |
 | **FASE 7.8** | **Panel Secretaria** | ✅ **Completo** | Sidebar role-adaptive + dashboard día + kanban leads + agenda vendedores |
@@ -480,6 +488,38 @@ Movido al final porque no hay urgencia operativa hoy. Cuando llegue:
 | 8 | "new row violates row-level security policy for table audit_log" al hacer INSERT/UPDATE en cualquier tabla auditada | `trg_audit_log()` y `generar_numero_operacion()` corren como `authenticated`; `audit_log` y `numeracion_correlativos` tienen RLS sin policy INSERT | Migration 0013: `ALTER FUNCTION ... SECURITY DEFINER SET search_path = ...` | F4.1 |
 | 9 | "column empresas.telefono does not exist" al generar contrato PDF | El template asumía teléfono/email a nivel empresa; en SVI viven a nivel sucursal | Pedir contacto a `sucursales` y mapearlo al header del PDF | F4.1 |
 | 10 | Crash con frame en `<Toaster>` al renderizar detail de venta | 12 componentes client tenían `<Toaster>` propio, montaje múltiple confundía sonner | Centralizar `<Toaster>` único en `(dashboard)/layout.tsx` | F4.1 |
+
+---
+
+## ✅ F6.G — Capa IA Transversal (terminado 2026-05-01)
+
+Sienta los cimientos de IA reutilizables para todos los módulos del ERP.
+La capa se construye una sola vez y se aplica en cada vertical (Caja primero,
+después Ventas/Inversiones/Liquidaciones/Bancos/Stock/Clientes/Agenda).
+
+**Stack decidido:** OpenAI (gpt-5-mini default · gpt-5-nano alta frecuencia ·
+gpt-5 premium para reportes mensuales · text-embedding-3-small embeddings) +
+Redis self-hosted dedicado en VPS (svi_redis, ioredis, sliding window ZSET) +
+pgvector embebido en Supabase para búsqueda semántica.
+
+**Componentes entregados:**
+- 3 migrations: `0022_ai_chat_sessions`, `0023_ai_token_usage`, `0024_pgvector_embeddings`
+- 5 permisos RBAC `ia.*` (use, chat, report, usage_view, config)
+- Módulo `apps/admin/src/modules/ai/` (13 archivos): client, cache, rate-limit,
+  audit, redact, schemas, insights, anomalies, categorize, forecast, embeddings,
+  chat (SSE), prompts/
+- 7 endpoints `/api/ai/*` (insights, categorize, anomalies, forecast, chat-SSE,
+  analyze, report) con RBAC + rate limit + budget cap
+- 6 componentes UI: `<AiInsightsWidget>`, `<AiAnomalyBadge>`, `<AiSuggestInput>`,
+  `<AiNarrativeBlock>`, `<AiForecastChart>`, `<AiChatFloating>`
+- Asistente flotante global montado en topbar del dashboard
+
+**Spec maestro:** `docs/superpowers/specs/2026-05-01-f6-caja-ia-transversal-design.md`
+**Plan de ejecución:** `docs/superpowers/plans/2026-05-01-bloque-g-capa-ia-transversal.md`
+
+**Próximo bloque:** F6.A (Dashboard Caja con IA) — conecta los componentes
+reutilizables al módulo Caja: gráficos de tendencia + AiInsightsWidget +
+AiForecastChart + categorización automática inline + búsqueda semántica.
 
 ---
 
